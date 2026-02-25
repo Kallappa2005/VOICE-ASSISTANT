@@ -1,0 +1,24 @@
+# Ignore files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+.env
+*.log
+data/logs/*
+data/screenshots/*
+!data/logs/.gitkeep
+!data/screenshots/.gitkeep
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.DS_Store
+chromedriver.exe
+geckodriver.exe

@@ -1,0 +1,16 @@
+Step-by-Step Approach
+Step 1: Set up project structure (folders, files)
+↓
+Step 2: Install all required dependencies
+↓
+Step 3: Build voice input/output module (speak & listen)
+↓
+Step 4: Create browser automation module (open, navigate, scroll, screenshot)
+↓
+Step 5: Implement command parser (understand voice commands)
+↓
+Step 6: Integrate all modules (connect everything)
+↓
+Step 7: Test each feature (verify it works)
+↓
+Step 8: Add error handling (make it robust)

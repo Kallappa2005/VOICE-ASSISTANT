@@ -1,0 +1,1 @@
+# Registry of all available commands
