@@ -14,3 +14,7 @@ Step 6: Integrate all modules (connect everything)
 Step 7: Test each feature (verify it works)
 ↓
 Step 8: Add error handling (make it robust)
+
+
+# commands
+python -m tests.test_speech --> to test the speech module.
