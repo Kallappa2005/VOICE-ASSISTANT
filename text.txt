@@ -44,3 +44,12 @@ voice_index → Selects system voice (male/female/accent depending on OS) — ch
 engine.say(text) → Queues text for speaking — longer text = longer speech duration.
 
 engine.stop() → Immediately stops current speech — useful for interruptions.
+
+## Command	Action
+"scroll down"	Scroll down (medium)
+"scroll up"	Scroll up (medium)
+"scroll down a lot"	Scroll down (large)
+"scroll down a little"	Scroll down (small)
+"go to top"	Jump to top of page
+"go to bottom"	Jump to bottom of page
+"stop"	End test
