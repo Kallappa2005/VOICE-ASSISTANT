@@ -18,3 +18,29 @@ Step 8: Add error handling (make it robust)
 
 # commands
 python -m tests.test_speech --> to test the speech module.
+
+## SpeechRecognitionHandler (Input)
+
+language → Changes recognition language/accent (e.g., 'en-IN', 'en-US', 'hi-IN') — improves accuracy for that language.
+
+timeout → Time (in seconds) to wait for user to start speaking — increase for slow users, decrease for faster response.
+
+phrase_time_limit → Maximum seconds allowed for a single speech input — increase for long queries, decrease for short commands.
+
+energy_threshold → Microphone sensitivity level — increase in noisy rooms, decrease if mic is not detecting soft voice.
+
+dynamic_energy_threshold → Auto-adjust mic sensitivity based on background noise — keep True for real environments, False for fixed sensitivity.
+
+adjust_for_ambient_noise(duration) → Time spent calibrating background noise — increase in noisy areas, decrease for faster startup.
+
+## TextToSpeechHandler (Output)
+
+rate → Speech speed (words per minute) — increase for faster speech, decrease for slower and clearer speech.
+
+volume → Loudness level (0.0 to 1.0) — increase for louder output, decrease for softer voice.
+
+voice_index → Selects system voice (male/female/accent depending on OS) — change to alter voice tone.
+
+engine.say(text) → Queues text for speaking — longer text = longer speech duration.
+
+engine.stop() → Immediately stops current speech — useful for interruptions.
