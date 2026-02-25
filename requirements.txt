@@ -1,1 +1,21 @@
 # Python dependencies
+
+# Speech Recognition
+SpeechRecognition==3.10.0
+pyaudio==0.2.14
+pyttsx3==2.90
+
+# Browser Automation
+selenium==4.16.0
+webdriver-manager==4.0.1
+
+# GUI Automation & Screenshots
+pyautogui==0.9.54
+Pillow==10.1.0
+
+# Utilities
+python-dotenv==1.0.0
+colorama==0.4.6
+
+# Testing (optional for now)
+pytest==7.4.3
