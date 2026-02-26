@@ -6,6 +6,8 @@ Handles website navigation and URL management
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.action_chains import ActionChains
 from src.core.logger import setup_logger
 import time
 
@@ -38,12 +40,13 @@ class Navigation:
         }
         logger.info("Navigation handler initialized")
     
-    def goto_url(self, url):
+    def goto_url(self, url, new_tab=False):
         """
         Navigate to specific URL
         
         Args:
             url (str): URL to navigate to
+            new_tab (bool): Open in new tab if True
         
         Returns:
             bool: True if successful
@@ -58,8 +61,17 @@ class Navigation:
             if not url.startswith('http://') and not url.startswith('https://'):
                 url = 'https://' + url
             
-            logger.info(f"Navigating to: {url}")
-            driver.get(url)
+            logger.info(f"Navigating to: {url} (New tab: {new_tab})")
+            
+            if new_tab:
+                # Open in new tab
+                driver.execute_script(f"window.open('{url}', '_blank');")
+                time.sleep(1)
+                # Switch to new tab
+                driver.switch_to.window(driver.window_handles[-1])
+            else:
+                # Open in current tab
+                driver.get(url)
             
             # Wait for page to load
             self._wait_for_page_load()
@@ -71,12 +83,13 @@ class Navigation:
             logger.error(f"Failed to navigate to {url}: {e}")
             return False
     
-    def open_website(self, site_name):
+    def open_website(self, site_name, new_tab=False):
         """
         Open common website by name
         
         Args:
             site_name (str): Name of website (e.g., 'youtube', 'google')
+            new_tab (bool): Open in new tab if True
         
         Returns:
             tuple: (success, url)
@@ -88,32 +101,33 @@ class Navigation:
             if site_name in self.common_sites:
                 url = self.common_sites[site_name]
                 logger.info(f"Opening {site_name}: {url}")
-                success = self.goto_url(url)
+                success = self.goto_url(url, new_tab=new_tab)
                 return success, url
             
             # Check if it's a domain (contains .com, .in, .org, etc.)
             elif '.' in site_name:
                 logger.info(f"Opening custom website: {site_name}")
-                success = self.goto_url(site_name)
+                success = self.goto_url(site_name, new_tab=new_tab)
                 return success, site_name
             
             # Try adding .com
             else:
                 url = f"{site_name}.com"
                 logger.info(f"Trying: {url}")
-                success = self.goto_url(url)
+                success = self.goto_url(url, new_tab=new_tab)
                 return success, url
                 
         except Exception as e:
             logger.error(f"Failed to open website {site_name}: {e}")
             return False, None
     
-    def search_google(self, query):
+    def search_google(self, query, new_tab=False):
         """
         Search on Google
         
         Args:
             query (str): Search query
+            new_tab (bool): Open in new tab if True
         
         Returns:
             bool: True if successful
@@ -121,7 +135,7 @@ class Navigation:
         try:
             search_url = f"https://www.google.com/search?q={query.replace(' ', '+')}"
             logger.info(f"Searching Google for: {query}")
-            return self.goto_url(search_url)
+            return self.goto_url(search_url, new_tab=new_tab)
             
         except Exception as e:
             logger.error(f"Failed to search on Google: {e}")

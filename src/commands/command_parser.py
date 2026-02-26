@@ -30,6 +30,21 @@ class CommandParser:
         self.scroll_bottom_keywords = [
             'scroll to bottom', 'go to bottom', 'bottom of page', 'scroll bottom'
         ]
+        self.close_tab_keywords = [
+            'close tab', 'close this tab', 'close current tab'
+        ]
+        self.close_browser_keywords = [
+            'close browser', 'close all tabs', 'exit browser', 'quit browser'
+        ]
+        self.switch_tab_keywords = [
+            'switch tab', 'next tab', 'change tab'
+        ]
+        self.previous_tab_keywords = [
+            'previous tab', 'last tab', 'go back tab'
+        ]
+        self.new_tab_keywords = [
+            'new tab', 'open new tab', 'create tab'
+        ]
         logger.info("Command parser initialized")
     
     def parse(self, command):
@@ -48,6 +63,36 @@ class CommandParser:
         command = command.lower().strip()
         logger.info(f"Parsing command: {command}")
         
+        # Check for close browser
+        for keyword in self.close_browser_keywords:
+            if keyword in command:
+                logger.info("Close browser intent detected")
+                return {'intent': 'close_browser', 'params': None}
+        
+        # Check for close tab
+        for keyword in self.close_tab_keywords:
+            if keyword in command:
+                logger.info("Close tab intent detected")
+                return {'intent': 'close_tab', 'params': None}
+        
+        # Check for new tab
+        for keyword in self.new_tab_keywords:
+            if keyword in command:
+                logger.info("New tab intent detected")
+                return {'intent': 'new_tab', 'params': None}
+        
+        # Check for previous tab
+        for keyword in self.previous_tab_keywords:
+            if keyword in command:
+                logger.info("Previous tab intent detected")
+                return {'intent': 'previous_tab', 'params': None}
+        
+        # Check for switch/next tab
+        for keyword in self.switch_tab_keywords:
+            if keyword in command:
+                logger.info("Switch tab intent detected")
+                return {'intent': 'switch_tab', 'params': None}
+        
         # Check for scroll to top
         for keyword in self.scroll_top_keywords:
             if keyword in command:
@@ -63,7 +108,6 @@ class CommandParser:
         # Check for scroll down
         for keyword in self.scroll_down_keywords:
             if keyword in command:
-                # Extract amount (small, medium, large)
                 amount = 'medium'
                 if 'little' in command or 'small' in command:
                     amount = 'small'
@@ -79,7 +123,6 @@ class CommandParser:
         # Check for scroll up
         for keyword in self.scroll_up_keywords:
             if keyword in command:
-                # Extract amount
                 amount = 'medium'
                 if 'little' in command or 'small' in command:
                     amount = 'small'
@@ -118,68 +161,3 @@ class CommandParser:
             'intent': 'navigate',
             'params': {'site': command}
         }
-
-# """
-# Command Parser
-# Parses voice commands and identifies intent
-# """
-
-# from src.core.logger import setup_logger
-
-# logger = setup_logger(__name__)
-
-# class CommandParser:
-#     """Parse and interpret voice commands"""
-    
-#     def __init__(self):
-#         """Initialize command parser"""
-#         self.navigation_keywords = [
-#             'open', 'go to', 'navigate to', 'visit', 'show me', 'take me to'
-#         ]
-#         self.search_keywords = [
-#             'search for', 'search', 'find', 'look for', 'google'
-#         ]
-#         logger.info("Command parser initialized")
-    
-#     def parse(self, command):
-#         """
-#         Parse voice command
-        
-#         Args:
-#             command (str): Voice command text
-        
-#         Returns:
-#             dict: Parsed command with intent and parameters
-#         """
-#         if not command:
-#             return {'intent': 'unknown', 'params': None}
-        
-#         command = command.lower().strip()
-#         logger.info(f"Parsing command: {command}")
-        
-#         # Check for navigation commands
-#         for keyword in self.navigation_keywords:
-#             if keyword in command:
-#                 site = command.replace(keyword, '').strip()
-#                 logger.info(f"Navigation intent detected: {site}")
-#                 return {
-#                     'intent': 'navigate',
-#                     'params': {'site': site}
-#                 }
-        
-#         # Check for search commands
-#         for keyword in self.search_keywords:
-#             if command.startswith(keyword):
-#                 query = command.replace(keyword, '').strip()
-#                 logger.info(f"Search intent detected: {query}")
-#                 return {
-#                     'intent': 'search',
-#                     'params': {'query': query}
-#                 }
-        
-#         # Default: treat as website name
-#         logger.info(f"Default navigation: {command}")
-#         return {
-#             'intent': 'navigate',
-#             'params': {'site': command}
-#         }

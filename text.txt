@@ -53,3 +53,13 @@ engine.stop() → Immediately stops current speech — useful for interruptions.
 "go to top"	Jump to top of page
 "go to bottom"	Jump to bottom of page
 "stop"	End test
+
+# Voice Commands to Try:
+Command	Action
+"switch tab"	Switch to next tab
+"next tab"	Switch to next tab
+"previous tab"	Go to previous tab
+"close tab"	Close current tab
+"new tab"	Open new blank tab
+"close browser"	Close all tabs & browser
+"stop"	End test
