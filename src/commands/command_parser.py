@@ -45,6 +45,13 @@ class CommandParser:
         self.new_tab_keywords = [
             'new tab', 'open new tab', 'create tab'
         ]
+        self.screenshot_keywords = [
+            'take screenshot', 'capture screen', 'save screenshot', 
+            'screenshot', 'take picture', 'capture page', 'snap'
+        ]
+        self.fullpage_screenshot_keywords = [
+            'full page screenshot', 'full screenshot', 'entire page screenshot'
+        ]
         logger.info("Command parser initialized")
     
     def parse(self, command):
@@ -62,6 +69,18 @@ class CommandParser:
         
         command = command.lower().strip()
         logger.info(f"Parsing command: {command}")
+        
+        # Check for full page screenshot
+        for keyword in self.fullpage_screenshot_keywords:
+            if keyword in command:
+                logger.info("Full page screenshot intent detected")
+                return {'intent': 'fullpage_screenshot', 'params': None}
+        
+        # Check for screenshot
+        for keyword in self.screenshot_keywords:
+            if keyword in command:
+                logger.info("Screenshot intent detected")
+                return {'intent': 'screenshot', 'params': None}
         
         # Check for close browser
         for keyword in self.close_browser_keywords:

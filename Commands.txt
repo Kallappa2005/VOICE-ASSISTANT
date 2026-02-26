@@ -63,3 +63,9 @@ Command	Action
 "new tab"	Open new blank tab
 "close browser"	Close all tabs & browser
 "stop"	End test
+
+## Command	Action
+"take screenshot"	Capture current view
+"capture screen"	Same as above
+"full page screenshot"	Capture entire scrollable page
+"go to youtube" then "take screenshot"	Capture YouTube
