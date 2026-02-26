@@ -45,12 +45,26 @@ class CommandParser:
         self.new_tab_keywords = [
             'new tab', 'open new tab', 'create tab'
         ]
-        self.screenshot_keywords = [
-            'take screenshot', 'capture screen', 'save screenshot', 
-            'screenshot', 'take picture', 'capture page', 'snap'
-        ]
+        # SCREENSHOT KEYWORDS - More specific ones
         self.fullpage_screenshot_keywords = [
             'full page screenshot', 'full screenshot', 'entire page screenshot'
+        ]
+        self.delete_all_screenshots_keywords = [
+            'delete all screenshot', 'clear screenshots', 'remove all screenshots',
+            'clear all screenshots'
+        ]
+        self.delete_screenshot_keywords = [
+            'delete screenshot', 'remove screenshot', 'delete last screenshot', 
+            'delete picture'
+        ]
+        self.list_screenshots_keywords = [
+            'list screenshot', 'show screenshots', 'display screenshots',
+            'how many screenshots'
+        ]
+        # General screenshot keywords - KEEP THIS LAST
+        self.screenshot_keywords = [
+            'take screenshot', 'capture screen', 'save screenshot', 
+            'take picture', 'capture page', 'snap'
         ]
         logger.info("Command parser initialized")
     
@@ -70,17 +84,39 @@ class CommandParser:
         command = command.lower().strip()
         logger.info(f"Parsing command: {command}")
         
+        # ====== SCREENSHOT COMMANDS - CHECK SPECIFIC ONES FIRST ======
+        
+        # Check for delete all screenshots FIRST
+        for keyword in self.delete_all_screenshots_keywords:
+            if keyword in command:
+                logger.info("Delete all screenshots intent detected")
+                return {'intent': 'delete_all_screenshots', 'params': None}
+        
+        # Check for list screenshots
+        for keyword in self.list_screenshots_keywords:
+            if keyword in command:
+                logger.info("List screenshots intent detected")
+                return {'intent': 'list_screenshots', 'params': None}
+        
+        # Check for delete screenshot (single)
+        for keyword in self.delete_screenshot_keywords:
+            if keyword in command:
+                logger.info("Delete screenshot intent detected")
+                return {'intent': 'delete_screenshot', 'params': None}
+        
         # Check for full page screenshot
         for keyword in self.fullpage_screenshot_keywords:
             if keyword in command:
                 logger.info("Full page screenshot intent detected")
                 return {'intent': 'fullpage_screenshot', 'params': None}
         
-        # Check for screenshot
+        # Check for screenshot (GENERAL - LAST)
         for keyword in self.screenshot_keywords:
             if keyword in command:
                 logger.info("Screenshot intent detected")
                 return {'intent': 'screenshot', 'params': None}
+        
+        # ====== OTHER COMMANDS ======
         
         # Check for close browser
         for keyword in self.close_browser_keywords:

@@ -50,7 +50,7 @@ def test_screenshot_functionality():
     nav.goto_url("https://en.wikipedia.org/wiki/Python_(programming_language)")
     time.sleep(3)
     
-    tts.speak("Page loaded. You can now take screenshots.")
+    tts.speak("Page loaded. You can now take or manage screenshots.")
     print("✅ Page loaded")
     
     # Show existing screenshots
@@ -66,12 +66,13 @@ def test_screenshot_functionality():
     # Interactive loop
     print("\n💡 Try these commands:")
     print("   - 'take screenshot'")
-    print("   - 'capture screen'")
-    print("   - 'full page screenshot'")
+    print("   - 'list screenshots'")
+    print("   - 'delete screenshot' (deletes last one)")
+    print("   - 'delete all screenshots'")
     print("   - 'go to youtube' (then take screenshot)")
     print("   - 'stop' to exit\n")
     
-    max_commands = 5
+    max_commands = 8
     command_count = 0
     screenshots_taken = 0
     
@@ -99,22 +100,83 @@ def test_screenshot_functionality():
         intent = parsed['intent']
         params = parsed['params']
         
-        # Execute command
-        if intent == 'screenshot':
-            tts.speak("Taking screenshot. Please wait.")
-            print("📸 Capturing screenshot...")
+        print(f"🔍 Detected intent: {intent}")  # DEBUG OUTPUT
+        
+        # ====== HANDLE SCREENSHOT COMMANDS FIRST ======
+        
+        if intent == 'delete_all_screenshots':
+            count = screenshot.get_screenshot_count()
             
-            success, filepath = screenshot.take_screenshot()
-            
-            if success:
-                screenshots_taken += 1
-                filename = os.path.basename(filepath)
-                print(f"✅ Screenshot saved: {filename}")
-                print(f"📁 Location: {filepath}")
-                tts.speak("Screenshot saved successfully")
+            if count == 0:
+                print("❌ No screenshots to delete")
+                tts.speak("No screenshots found")
             else:
-                print("❌ Failed to take screenshot")
-                tts.speak("Failed to take screenshot")
+                print(f"\n🗑️ Want to delete all {count} screenshots...")
+                tts.speak(f"This will delete all {count} screenshots. Say yes to confirm or no to cancel.")
+                
+                # Wait for confirmation
+                print("🎤 Waiting for confirmation (yes/no)...")
+                confirmation = stt.listen()
+                
+                print(f"📝 Heard: '{confirmation}'")
+                
+                if confirmation:
+                    confirmation_lower = confirmation.lower().strip()
+                    
+                    if 'yes' in confirmation_lower or 'yeah' in confirmation_lower or 'confirm' in confirmation_lower or 'sure' in confirmation_lower or 'ok' in confirmation_lower or 'okay' in confirmation_lower:
+                        print("✅ Confirmation received: YES")
+                        tts.speak("Deleting all screenshots now")
+                        deleted = screenshot.clear_all_screenshots()
+                        print(f"✅ Deleted {deleted} screenshots")
+                        tts.speak(f"All screenshots deleted. {deleted} files removed.")
+                    elif 'no' in confirmation_lower or 'cancel' in confirmation_lower or 'stop' in confirmation_lower:
+                        print("❌ Deletion cancelled by user")
+                        tts.speak("Deletion cancelled")
+                    else:
+                        print(f"❌ Unclear response: '{confirmation}'")
+                        tts.speak("I didn't understand. Deletion cancelled for safety.")
+                else:
+                    print("❌ No confirmation heard")
+                    tts.speak("No response heard. Deletion cancelled")
+        
+        elif intent == 'list_screenshots':
+            count = screenshot.get_screenshot_count()
+            print(f"\n📊 Total screenshots: {count}")
+            tts.speak(f"You have {count} screenshots")
+            
+            if count > 0:
+                print("📁 Screenshots:")
+                screenshots_list = screenshot.list_screenshots()
+                
+                # Show first 5
+                for i, filename in enumerate(screenshots_list[:5], 1):
+                    filepath = os.path.join(screenshot.screenshots_dir, filename)
+                    size = os.path.getsize(filepath) / 1024  # KB
+                    print(f"   {i}. {filename} ({size:.1f} KB)")
+                
+                if count > 5:
+                    print(f"   ... and {count - 5} more")
+            else:
+                print("📁 No screenshots found")
+        
+        elif intent == 'delete_screenshot':
+            screenshots_list = screenshot.list_screenshots()
+            
+            if not screenshots_list:
+                print("❌ No screenshots to delete")
+                tts.speak("No screenshots found to delete")
+            else:
+                last_screenshot = screenshots_list[0]  # Most recent
+                print(f"\n🗑️ Deleting: {last_screenshot}")
+                tts.speak("Deleting last screenshot")
+                
+                if screenshot.delete_screenshot(last_screenshot):
+                    print(f"✅ Deleted: {last_screenshot}")
+                    remaining = screenshot.get_screenshot_count()
+                    tts.speak(f"Screenshot deleted. {remaining} remaining")
+                else:
+                    print("❌ Failed to delete screenshot")
+                    tts.speak("Failed to delete screenshot")
         
         elif intent == 'fullpage_screenshot':
             tts.speak("Taking full page screenshot. This may take a moment.")
@@ -132,6 +194,24 @@ def test_screenshot_functionality():
                 print("❌ Failed to take full page screenshot")
                 tts.speak("Failed to take full page screenshot")
         
+        elif intent == 'screenshot':
+            tts.speak("Taking screenshot. Please wait.")
+            print("📸 Capturing screenshot...")
+            
+            success, filepath = screenshot.take_screenshot()
+            
+            if success:
+                screenshots_taken += 1
+                filename = os.path.basename(filepath)
+                print(f"✅ Screenshot saved: {filename}")
+                print(f"📁 Location: {filepath}")
+                tts.speak("Screenshot saved successfully")
+            else:
+                print("❌ Failed to take screenshot")
+                tts.speak("Failed to take screenshot")
+        
+        # ====== OTHER COMMANDS ======
+        
         elif intent == 'navigate':
             site = params['site']
             tts.speak(f"Opening {site}")
@@ -148,8 +228,23 @@ def test_screenshot_functionality():
                 print(f"❌ Failed to open: {site}")
                 tts.speak(f"Could not open {site}")
         
+        elif intent == 'search':
+            query = params['query']
+            tts.speak(f"Searching for {query}")
+            print(f"\n🔍 Searching: {query}")
+            
+            success = nav.search_google(query)
+            
+            if success:
+                time.sleep(2)
+                print(f"✅ Search completed")
+                tts.speak("Search completed")
+            else:
+                print(f"❌ Search failed")
+                tts.speak("Search failed")
+        
         else:
-            tts.speak("Try saying take screenshot or go to a website.")
+            tts.speak("Try saying take screenshot, list screenshots, or delete screenshot.")
         
         command_count += 1
     
@@ -160,17 +255,17 @@ def test_screenshot_functionality():
     print(f"📸 Screenshots taken this session: {screenshots_taken}")
     
     total_count = screenshot.get_screenshot_count()
-    print(f"📁 Total screenshots saved: {total_count}")
+    print(f"📁 Total screenshots remaining: {total_count}")
     
-    if screenshots_taken > 0:
-        print("\n📁 New screenshots:")
-        recent = screenshot.list_screenshots()[:screenshots_taken]
+    if total_count > 0:
+        print("\n📁 Current screenshots:")
+        recent = screenshot.list_screenshots()
         for i, filename in enumerate(recent, 1):
             filepath = os.path.join(screenshot.screenshots_dir, filename)
             size = os.path.getsize(filepath) / 1024  # KB
             print(f"   {i}. {filename} ({size:.1f} KB)")
     
-    tts.speak(f"Test completed. {screenshots_taken} screenshots taken. Closing browser.")
+    tts.speak(f"Test completed. Closing browser.")
     time.sleep(2)
     browser.close_browser()
     
