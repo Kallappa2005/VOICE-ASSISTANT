@@ -1,0 +1,34 @@
+Option A: Step 6 - YouTube Automation 🎥
+Search videos on YouTube
+Play/pause videos
+Control volume
+Skip ads
+Next/previous video
+
+
+Option B: Step 7 - Form Filling 📝
+Auto-fill forms
+Login to websites
+Submit data
+Handle dropdowns and checkboxes
+
+
+Option C: Step 8 - Web Scraping 🕷️
+Extract data from websites
+Save to CSV/JSON
+Search and collect information
+Monitor website changes
+
+Option D: Step 9 - Email Automation 📧
+Open Gmail
+Read emails
+Compose and send emails
+Search inbox
+
+
+Option E: Step 10 - Advanced Features 🎯
+Bookmark pages
+Download files
+Open multiple tabs with list
+Incognito mode
+Custom voice commands
