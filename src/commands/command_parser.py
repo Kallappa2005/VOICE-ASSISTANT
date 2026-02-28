@@ -45,12 +45,12 @@ class CommandParser:
         self.new_tab_keywords = [
             'new tab', 'open new tab', 'create tab'
         ]
-        # SCREENSHOT KEYWORDS - More specific ones
+        # SCREENSHOT KEYWORDS
         self.fullpage_screenshot_keywords = [
             'full page screenshot', 'full screenshot', 'entire page screenshot'
         ]
         self.delete_all_screenshots_keywords = [
-            'delete all screenshot', 'clear screenshots', 'remove all screenshots',
+            'delete all screenshots', 'clear screenshots', 'remove all screenshots',
             'clear all screenshots'
         ]
         self.delete_screenshot_keywords = [
@@ -58,14 +58,23 @@ class CommandParser:
             'delete picture'
         ]
         self.list_screenshots_keywords = [
-            'list screenshot', 'show screenshots', 'display screenshots',
+            'list screenshots', 'show screenshots', 'display screenshots',
             'how many screenshots'
         ]
-        # General screenshot keywords - KEEP THIS LAST
         self.screenshot_keywords = [
             'take screenshot', 'capture screen', 'save screenshot', 
             'take picture', 'capture page', 'snap'
         ]
+        
+        # YOUTUBE KEYWORDS - NEW
+        self.youtube_search_keywords = [
+            'search on youtube', 'youtube search', 'search youtube',
+            'find on youtube', 'youtube find'
+        ]
+        self.open_youtube_keywords = [
+            'open youtube', 'go to youtube', 'youtube'
+        ]
+        
         logger.info("Command parser initialized")
     
     def parse(self, command):
@@ -84,7 +93,27 @@ class CommandParser:
         command = command.lower().strip()
         logger.info(f"Parsing command: {command}")
         
-        # ====== SCREENSHOT COMMANDS - CHECK SPECIFIC ONES FIRST ======
+        # ====== YOUTUBE COMMANDS - CHECK FIRST ======
+        
+        # Check for YouTube search
+        for keyword in self.youtube_search_keywords:
+            if keyword in command:
+                # Extract query after keyword
+                query = command.split(keyword)[-1].strip()
+                if query:
+                    logger.info(f"YouTube search intent detected: {query}")
+                    return {
+                        'intent': 'youtube_search',
+                        'params': {'query': query}
+                    }
+        
+        # Check for open YouTube
+        for keyword in self.open_youtube_keywords:
+            if command == keyword or command.startswith(keyword + ' '):
+                logger.info("Open YouTube intent detected")
+                return {'intent': 'open_youtube', 'params': None}
+        
+        # ====== SCREENSHOT COMMANDS ======
         
         # Check for delete all screenshots FIRST
         for keyword in self.delete_all_screenshots_keywords:
