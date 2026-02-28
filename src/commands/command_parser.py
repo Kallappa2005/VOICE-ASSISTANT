@@ -74,15 +74,35 @@ class CommandParser:
         self.open_youtube_keywords = [
             'open youtube', 'go to youtube', 'youtube'
         ]
+
+        # NEW: Play video by number
+        self.play_video_keywords = [
+            'play video', 'play the video', 'open video', 'play that video'
+        ]
+        # Pause video - MORE SPECIFIC
+        self.pause_video_keywords = [
+            'pause video', 'pause the video', 'pause this video', 'pause'
+        ]
+        # Resume video - MORE SPECIFIC
+        self.resume_video_keywords = [
+            'resume video', 'resume the video', 'continue video', 
+            'resume', 'unpause', 'unpause video'
+        ]
+        # Stop video - NEW
+        self.stop_video_keywords = [
+            'stop video', 'stop the video', 'stop playback'
+        ]
         
         logger.info("Command parser initialized")
     
-    def parse(self, command):
+    def parse(self, command , context=None):
         """
         Parse voice command
         
         Args:
             command (str): Voice command text
+            context (dict): Optional context (e.g., {'on_video_page': True})
+        
         
         Returns:
             dict: Parsed command with intent and parameters
@@ -92,6 +112,9 @@ class CommandParser:
         
         command = command.lower().strip()
         logger.info(f"Parsing command: {command}")
+
+        if context:
+            logger.info(f"Context: {context}")
         
         # ====== YOUTUBE COMMANDS - CHECK FIRST ======
         
@@ -106,12 +129,135 @@ class CommandParser:
                         'intent': 'youtube_search',
                         'params': {'query': query}
                     }
-        
+                
         # Check for open YouTube
         for keyword in self.open_youtube_keywords:
             if command == keyword or command.startswith(keyword + ' '):
                 logger.info("Open YouTube intent detected")
                 return {'intent': 'open_youtube', 'params': None}
+            
+        # ====== VIDEO PLAYBACK CONTROL (Context-Aware) ======
+            
+         # Check for STOP VIDEO first (most specific)
+        for keyword in self.stop_video_keywords:
+            if keyword in command:
+                logger.info("Stop video intent detected")
+                return {'intent': 'stop_video', 'params': None}
+        
+        # Check for PAUSE VIDEO
+        for keyword in self.pause_video_keywords:
+            if keyword in command:
+                logger.info("Pause video intent detected")
+                return {'intent': 'pause_video', 'params': None}
+        
+        # Check for RESUME VIDEO
+        for keyword in self.resume_video_keywords:
+            if keyword in command:
+                logger.info("Resume video intent detected")
+                return {'intent': 'resume_video', 'params': None}
+                
+
+        # Check for PLAY VIDEO (with number OR resume if on video page)
+        for keyword in self.play_video_keywords:
+            if keyword in command:
+                import re
+                
+                # If on video page and no number mentioned → resume
+                on_video_page = context and context.get('on_video_page', False)
+                
+                # Check if command has a number
+                has_number = False
+                word_to_num = {
+                    'first': 1, '1st': 1, 'second': 2, '2nd': 2, 'third': 3, '3rd': 3,
+                    'fourth': 4, '4th': 4, 'fifth': 5, '5th': 5, 'sixth': 6, '6th': 6,
+                    'seventh': 7, '7th': 7, 'eighth': 8, '8th': 8, 'ninth': 9, '9th': 9,
+                    'tenth': 10, '10th': 10, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
+                    'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+                }
+
+                video_num = None
+                
+                # Check for number words
+                for word, num in sorted(word_to_num.items(), key=lambda x: -len(x[0])):
+                    if word in command:
+                        video_num = num
+                        has_number = True
+                        break
+                
+                # Check for digits
+                if not video_num:
+                    numbers = re.findall(r'\d+', command)
+                    if numbers:
+                        video_num = int(numbers[0])
+                        has_number = True
+                
+                # DECISION: Resume or Play new video?
+                if on_video_page and not has_number:
+                    # On video page, no number → RESUME
+                    logger.info("Resume video intent detected (play on video page)")
+                    return {'intent': 'resume_video', 'params': None}
+                else:
+                    # Has number OR not on video page → PLAY VIDEO
+                    if not video_num:
+                        video_num = 1  # Default
+                    
+                    logger.info(f"Play video intent detected: video #{video_num}")
+                    return {
+                        'intent': 'play_video',
+                        'params': {'video_number': video_num}
+                    }
+                
+        # Check for play video with number
+        # for keyword in self.play_video_keywords:
+        #     if keyword in command:
+        #         # Extract number from command
+        #         import re
+                
+        #         # Word to number mapping
+        #         word_to_num = {
+        #             'first': 1, 'second': 2, 'third': 3, 'fourth': 4, 'fifth': 5,
+        #             'sixth': 6, 'seventh': 7, 'eighth': 8, 'ninth': 9, 'tenth': 10,
+        #             'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+        #             'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+        #         }
+                
+        #         video_num = None
+                
+        #         # Check for number words
+        #         for word, num in word_to_num.items():
+        #             if word in command:
+        #                 video_num = num
+        #                 break
+                
+        #         # Check for digits
+        #         if not video_num:
+        #             numbers = re.findall(r'\d+', command)
+        #             if numbers:
+        #                 video_num = int(numbers[0])
+                
+        #         # Default to 1 if no number specified
+        #         if not video_num:
+        #             video_num = 1
+                
+        #         logger.info(f"Play video intent detected: video #{video_num}")
+        #         return {
+        #             'intent': 'play_video',
+        #             'params': {'video_number': video_num}
+        #         }
+        
+        # Check for pause video
+        for keyword in self.pause_video_keywords:
+            if keyword in command:
+                logger.info("Pause video intent detected")
+                return {'intent': 'pause_video', 'params': None}
+        
+        # Check for resume/play video (when on video page)
+        for keyword in self.resume_video_keywords:
+            if keyword in command:
+                logger.info("Resume video intent detected")
+                return {'intent': 'resume_video', 'params': None}
+        
+        
         
         # ====== SCREENSHOT COMMANDS ======
         

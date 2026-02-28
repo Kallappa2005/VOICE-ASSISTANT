@@ -69,3 +69,15 @@ Command	Action
 "capture screen"	Same as above
 "full page screenshot"	Capture entire scrollable page
 "go to youtube" then "take screenshot"	Capture YouTube
+
+##Play video
+"cat videos"
+"bike races"
+"kgf movie"
+
+## Selection Commands:
+Say: "play video 1" → Video plays
+Say: "pause video" → Video pauses (and STAYS paused)
+Say: "play video" → Video resumes
+Say: "stop video" → Video pauses and resets to start
+Say: "exit test" → Exits the test
