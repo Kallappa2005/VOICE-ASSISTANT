@@ -81,3 +81,10 @@ Say: "pause video" → Video pauses (and STAYS paused)
 Say: "play video" → Video resumes
 Say: "stop video" → Video pauses and resets to start
 Say: "exit test" → Exits the test
+
+##
+Create the main application
+Add advanced features
+Improve existing features
+
+"count screenshots"

@@ -19,3 +19,14 @@ colorama==0.4.6
 
 # Testing (optional for now)
 pytest==7.4.3
+
+
+# ==================== AI DEPENDENCIES (FREE - GEMINI) ====================
+google-generativeai==0.3.2      # Google Gemini API (FREE!)
+python-dotenv==1.0.0            # Environment variables
+beautifulsoup4==4.12.3          # HTML parsing
+lxml==5.1.0                     # XML/HTML parser
+requests==2.31.0                # HTTP requests
+markdownify==0.11.6             # Convert HTML to Markdown
+radon==6.0.1                    # Code complexity metrics
+bandit==1.7.7                   # Security vulnerability scanner

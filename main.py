@@ -1,1 +1,735 @@
 # Main entry point of the application
+
+"""
+Voice Assistant - Main Application
+Integrates all features: Speech, Browser, YouTube, Screenshots, Navigation, etc.
+Run: python main.py
+"""
+
+import sys
+import os
+import time
+
+# Add src to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from src.speech.text_to_speech_handler import TextToSpeechHandler
+from src.speech.speech_recognition_handler import SpeechRecognitionHandler
+from src.browser.browser_controller import BrowserController
+from src.browser.navigation import Navigation
+from src.browser.tab_manager import TabManager
+from src.automation.scroll_handler import ScrollHandler
+from src.automation.screenshot_handler import ScreenshotHandler
+from src.automation.youtube_controller import YouTubeController
+from src.commands.command_parser import CommandParser
+from src.core.logger import setup_logger
+
+logger = setup_logger(__name__)
+
+class VoiceAssistant:
+    """Main Voice Assistant Application"""
+    
+    def __init__(self):
+        """Initialize all components"""
+        print("\n" + "=" * 80)
+        print(" " * 25 + "🎤 VOICE ASSISTANT")
+        print("=" * 80)
+        print("\n🔧 Initializing components...")
+        
+        # Initialize speech handlers
+        print("   ├── Speech Recognition...")
+        self.tts = TextToSpeechHandler(rate=160)
+        self.stt = SpeechRecognitionHandler()
+        print("   ✅ Speech module ready")
+        
+        # Initialize browser controller
+        print("   ├── Browser Controller...")
+        self.browser = BrowserController()
+        print("   ✅ Browser controller ready")
+        
+        # Initialize command parser
+        print("   ├── Command Parser...")
+        self.parser = CommandParser()
+        print("   ✅ Command parser ready")
+        
+        # Browser-dependent handlers (initialized after browser opens)
+        self.nav = None
+        self.tabs = None
+        self.scroll = None
+        self.screenshot = None
+        self.youtube = None
+        
+        self.running = False
+        
+        print("\n✅ Voice Assistant initialized successfully!")
+        logger.info("Voice Assistant initialized")
+    
+    def start(self):
+        """Start the voice assistant"""
+        print("\n" + "=" * 80)
+        print("🚀 STARTING VOICE ASSISTANT")
+        print("=" * 80)
+        
+        # Greet user
+        self.tts.speak("Hello! I am your voice assistant.")
+        time.sleep(0.5)
+        
+        # Open browser
+        print("\n📋 Opening Chrome browser...")
+        self.tts.speak("Opening Chrome browser, please wait.")
+        
+        if not self.browser.open_chrome():
+            print("❌ Failed to open browser")
+            self.tts.speak("Failed to open browser. Please check your Chrome installation.")
+            return False
+        
+        print("✅ Browser opened successfully")
+        time.sleep(1)
+        
+        # Initialize browser-dependent handlers
+        print("\n🔧 Initializing browser features...")
+        self.nav = Navigation(self.browser)
+        self.tabs = TabManager(self.browser)
+        self.scroll = ScrollHandler(self.browser)
+        self.screenshot = ScreenshotHandler(self.browser)
+        self.youtube = YouTubeController(self.browser)
+        print("✅ All features initialized")
+        
+        # Ready message
+        print("\n" + "=" * 80)
+        print("✅ VOICE ASSISTANT IS READY!")
+        print("=" * 80)
+        
+        self.tts.speak("I am ready! You can now give me commands.")
+        time.sleep(0.5)
+        self.tts.speak("Say help to hear available commands, or say exit to quit.")
+        
+        # Show command menu
+        self._show_command_menu()
+        
+        # Start command loop
+        self.running = True
+        self.run_command_loop()
+        
+        return True
+    
+    def _show_command_menu(self):
+        """Display available commands"""
+        print("\n" + "=" * 80)
+        print("📋 AVAILABLE COMMANDS:")
+        print("=" * 80)
+        
+        commands = {
+            "🌐 Navigation": [
+                "'open youtube' - Open YouTube",
+                "'open google' / 'open wikipedia' - Open websites",
+                "'search for [query]' - Search on Google",
+            ],
+            "📹 YouTube": [
+                "'search youtube for [query]' - Search videos",
+                "'play video 1' / 'play first video' - Play specific video",
+                "'pause video' - Pause current video",
+                "'play video' / 'resume video' - Resume playback",
+                "'stop video' - Stop and reset video",
+            ],
+            "📜 Scrolling": [
+                "'scroll down' / 'scroll up' - Scroll page",
+                "'scroll to top' / 'scroll to bottom' - Jump to top/bottom",
+            ],
+            "📸 Screenshots": [
+                "'take screenshot' - Capture current view",
+                "'full page screenshot' - Capture entire page",
+                "'list screenshots' - Count screenshots",
+                "'delete screenshot' - Delete last screenshot",
+            ],
+            "🗂️ Tab Management": [
+                "'switch tab' / 'next tab' - Switch to next tab",
+                "'previous tab' - Switch to previous tab",
+                "'new tab' - Open new tab",
+                "'close tab' - Close current tab",
+            ],
+            "⚙️ System": [
+                "'help' - Show this menu",
+                "'exit' / 'goodbye' - Quit assistant",
+            ]
+        }
+        
+        for category, cmd_list in commands.items():
+            print(f"\n{category}")
+            print("  " + "─" * 70)
+            for cmd in cmd_list:
+                print(f"  {cmd}")
+        
+        print("\n" + "=" * 80)
+    
+    def run_command_loop(self):
+        """Main command processing loop"""
+        command_count = 0
+        
+        while self.running:
+            try:
+                print("\n" + "━" * 80)
+                print(f"🎤 LISTENING... (Command #{command_count + 1})")
+                print("━" * 80)
+                
+                # Get context
+                context = self._get_context()
+                if context:
+                    if context.get('on_video_page'):
+                        status = "▶️ Playing" if context.get('video_playing') else "⏸️ Paused"
+                        print(f"📍 Context: On YouTube video page ({status})")
+                    elif context.get('on_youtube'):
+                        print(f"📍 Context: On YouTube")
+                    else:
+                        current_url = self.browser.get_current_url()
+                        if current_url:
+                            print(f"📍 Current page: {current_url[:60]}...")
+                
+                # Listen for command
+                print("\n🎤 Speak now...")
+                command = self.stt.listen()
+                
+                if not command:
+                    print("❓ No audio detected")
+                    self.tts.speak("I didn't hear anything. Please try again.")
+                    continue
+                
+                print(f"\n📝 You said: '{command}'")
+                logger.info(f"User command: {command}")
+                
+                # Check for exit command
+                if self._is_exit_command(command):
+                    print("\n👋 Exiting...")
+                    self.tts.speak("Goodbye! Thank you for using voice assistant.")
+                    break
+                
+                # Check for help command
+                if 'help' in command.lower():
+                    self.tts.speak("Here are the available commands")
+                    self._show_command_menu()
+                    self.tts.speak("What would you like me to do?")
+                    continue
+                
+                # Execute command
+                self.execute_command(command, context)
+                command_count += 1
+                
+            except KeyboardInterrupt:
+                print("\n\n⚠️ Interrupted by user (Ctrl+C)")
+                self.tts.speak("Interrupted")
+                break
+                
+            except Exception as e:
+                print(f"\n❌ Error in command loop: {e}")
+                logger.error(f"Command loop error: {e}")
+                self.tts.speak("Sorry, I encountered an error. Please try again.")
+        
+        # Cleanup
+        print(f"\n📊 Total commands executed: {command_count}")
+        self.cleanup()
+    
+    def _get_context(self):
+        """Get current context information"""
+        try:
+            context = {}
+            
+            # Check if on YouTube
+            if self.youtube and self.youtube.is_on_youtube():
+                context['on_youtube'] = True
+                
+                # Check if on video page
+                if self.youtube.is_on_video_page():
+                    context['on_video_page'] = True
+                    
+                    # Check if video is playing
+                    try:
+                        if self.youtube.is_video_playing():
+                            context['video_playing'] = True
+                    except:
+                        pass
+            
+            return context if context else None
+            
+        except Exception as e:
+            logger.error(f"Error getting context: {e}")
+            return None
+    
+    def _is_exit_command(self, command):
+        """Check if command is an exit command"""
+        exit_keywords = [
+            'exit', 'quit', 'goodbye', 'bye', 'stop', 
+            'close assistant', 'stop assistant', 'shut down'
+        ]
+        command_lower = command.lower().strip()
+        
+        # Exact matches
+        if command_lower in exit_keywords:
+            return True
+        
+        # Contains exit phrases
+        exit_phrases = ['exit', 'quit', 'goodbye', 'shut down']
+        return any(phrase in command_lower for phrase in exit_phrases)
+    
+    def execute_command(self, command, context=None):
+        """Execute parsed command"""
+        try:
+            # Parse command with context
+            parsed = self.parser.parse(command, context=context)
+            intent = parsed['intent']
+            params = parsed['params']
+            
+            print(f"🔍 Detected intent: {intent}")
+            logger.info(f"Intent: {intent}, Params: {params}")
+            
+            # Route to appropriate handler
+            if intent == 'navigate':
+                self._handle_navigate(params)
+            
+            elif intent == 'search':
+                self._handle_search(params)
+            
+            elif intent == 'open_youtube':
+                self._handle_open_youtube()
+            
+            elif intent == 'youtube_search':
+                self._handle_youtube_search(params)
+            
+            elif intent == 'play_video':
+                self._handle_play_video(params)
+            
+            elif intent == 'pause_video':
+                self._handle_pause_video()
+            
+            elif intent == 'resume_video':
+                self._handle_resume_video()
+            
+            elif intent == 'stop_video':
+                self._handle_stop_video()
+            
+            elif intent == 'scroll_down':
+                self._handle_scroll_down(params)
+            
+            elif intent == 'scroll_up':
+                self._handle_scroll_up(params)
+            
+            elif intent == 'scroll_top':
+                self._handle_scroll_top()
+            
+            elif intent == 'scroll_bottom':
+                self._handle_scroll_bottom()
+            
+            elif intent == 'screenshot':
+                self._handle_screenshot()
+            
+            elif intent == 'fullpage_screenshot':
+                self._handle_fullpage_screenshot()
+            
+            elif intent == 'list_screenshots':
+                self._handle_list_screenshots()
+            
+            elif intent == 'delete_screenshot':
+                self._handle_delete_screenshot()
+            
+            elif intent == 'delete_all_screenshots':
+                self._handle_delete_all_screenshots()
+            
+            elif intent == 'switch_tab':
+                self._handle_switch_tab()
+            
+            elif intent == 'previous_tab':
+                self._handle_previous_tab()
+            
+            elif intent == 'close_tab':
+                self._handle_close_tab()
+            
+            elif intent == 'new_tab':
+                self._handle_new_tab()
+            
+            elif intent == 'close_browser':
+                self._handle_close_browser()
+            
+            elif intent == 'unknown':
+                print("❌ Command not recognized")
+                self.tts.speak("I'm not sure what you mean. Say help to see available commands.")
+            
+            else:
+                print(f"⚠️ Intent '{intent}' not implemented yet")
+                self.tts.speak(f"I understand {intent}, but this feature is not ready yet.")
+        
+        except Exception as e:
+            print(f"❌ Error executing command: {e}")
+            logger.error(f"Command execution error: {e}", exc_info=True)
+            self.tts.speak("Sorry, I encountered an error while executing that command.")
+    
+    # ==================== COMMAND HANDLERS ====================
+    
+    def _handle_navigate(self, params):
+        """Handle website navigation"""
+        site = params.get('site', 'google')
+        print(f"\n🌐 Opening {site}...")
+        self.tts.speak(f"Opening {site}")
+        
+        success, url = self.nav.open_website(site)
+        if success:
+            time.sleep(2)
+            print(f"✅ Opened: {url}")
+            self.tts.speak(f"{site} is now open")
+        else:
+            print(f"❌ Failed to open {site}")
+            self.tts.speak(f"Could not open {site}")
+    
+    def _handle_search(self, params):
+        """Handle Google search"""
+        query = params.get('query', '')
+        if not query:
+            self.tts.speak("What would you like to search for?")
+            return
+        
+        print(f"\n🔍 Searching for: {query}")
+        self.tts.speak(f"Searching for {query}")
+        
+        if self.nav.search_google(query):
+            time.sleep(2)
+            print("✅ Search completed")
+            self.tts.speak("Search completed")
+        else:
+            print("❌ Search failed")
+            self.tts.speak("Search failed")
+    
+    def _handle_open_youtube(self):
+        """Handle open YouTube"""
+        print("\n📺 Opening YouTube...")
+        self.tts.speak("Opening YouTube")
+        
+        if self.youtube.open_youtube():
+            time.sleep(2)
+            print("✅ YouTube opened")
+            self.tts.speak("YouTube is now open")
+        else:
+            print("❌ Failed to open YouTube")
+            self.tts.speak("Failed to open YouTube")
+    
+    def _handle_youtube_search(self, params):
+        """Handle YouTube search"""
+        query = params.get('query', '')
+        if not query:
+            self.tts.speak("What would you like to search on YouTube?")
+            return
+        
+        print(f"\n🔍 Searching YouTube: {query}")
+        self.tts.speak(f"Searching YouTube for {query}")
+        
+        if self.youtube.search_video(query):
+            time.sleep(2)
+            count = self.youtube.get_search_results_count()
+            print(f"✅ Found {count} videos")
+            self.tts.speak(f"Found {count} videos. You can play any video by saying play video followed by a number.")
+        else:
+            print("❌ YouTube search failed")
+            self.tts.speak("YouTube search failed")
+    
+    def _handle_play_video(self, params):
+        """Handle play video by number"""
+        video_num = params.get('video_number', 1)
+        index = video_num - 1
+        
+        print(f"\n▶️ Playing video {video_num}...")
+        
+        # Get video title
+        title = self.youtube.get_video_title_by_index(index)
+        if not title:
+            print(f"❌ Video {video_num} not found")
+            self.tts.speak(f"Video {video_num} not found")
+            return
+        
+        print(f"   Title: {title[:60]}...")
+        self.tts.speak(f"Playing video {video_num}")
+        
+        if self.youtube.play_video_by_index(index):
+            time.sleep(3)
+            print("✅ Video started")
+            self.tts.speak("Video is now playing")
+        else:
+            print("❌ Failed to play video")
+            self.tts.speak("Failed to play video")
+    
+    def _handle_pause_video(self):
+        """Handle pause video"""
+        if not self.youtube.is_on_video_page():
+            print("❌ No video is playing")
+            self.tts.speak("No video is currently playing")
+            return
+        
+        print("\n⏸️ Pausing video...")
+        self.tts.speak("Pausing video")
+        
+        if self.youtube.pause_video():
+            time.sleep(1)
+            print("✅ Video paused")
+            self.tts.speak("Video paused")
+        else:
+            print("❌ Failed to pause")
+            self.tts.speak("Failed to pause video")
+    
+    def _handle_resume_video(self):
+        """Handle resume video"""
+        if not self.youtube.is_on_video_page():
+            print("❌ No video loaded")
+            self.tts.speak("No video is loaded")
+            return
+        
+        print("\n▶️ Resuming video...")
+        self.tts.speak("Resuming video")
+        
+        if self.youtube.play_video():
+            time.sleep(1)
+            print("✅ Video resumed")
+            self.tts.speak("Video resumed")
+        else:
+            print("❌ Failed to resume")
+            self.tts.speak("Failed to resume video")
+    
+    def _handle_stop_video(self):
+        """Handle stop video"""
+        if not self.youtube.is_on_video_page():
+            print("❌ No video is playing")
+            self.tts.speak("No video is playing")
+            return
+        
+        print("\n⏹️ Stopping video...")
+        self.tts.speak("Stopping video")
+        
+        if self.youtube.stop_video():
+            time.sleep(1)
+            print("✅ Video stopped and reset")
+            self.tts.speak("Video stopped")
+        else:
+            print("❌ Failed to stop")
+            self.tts.speak("Failed to stop video")
+    
+    def _handle_scroll_down(self, params):
+        """Handle scroll down"""
+        amount = params.get('amount', 'medium') if params else 'medium'
+        print(f"\n📜 Scrolling down ({amount})...")
+        
+        if self.scroll.scroll_down(amount):
+            print("✅ Scrolled down")
+            self.tts.speak("Scrolled down")
+        else:
+            print("❌ Failed to scroll")
+            self.tts.speak("Failed to scroll")
+    
+    def _handle_scroll_up(self, params):
+        """Handle scroll up"""
+        amount = params.get('amount', 'medium') if params else 'medium'
+        print(f"\n📜 Scrolling up ({amount})...")
+        
+        if self.scroll.scroll_up(amount):
+            print("✅ Scrolled up")
+            self.tts.speak("Scrolled up")
+        else:
+            print("❌ Failed to scroll")
+            self.tts.speak("Failed to scroll")
+    
+    def _handle_scroll_top(self):
+        """Handle scroll to top"""
+        print("\n📜 Scrolling to top...")
+        
+        if self.scroll.scroll_to_top():
+            print("✅ At top of page")
+            self.tts.speak("At top of page")
+        else:
+            print("❌ Failed to scroll")
+            self.tts.speak("Failed to scroll")
+    
+    def _handle_scroll_bottom(self):
+        """Handle scroll to bottom"""
+        print("\n📜 Scrolling to bottom...")
+        
+        if self.scroll.scroll_to_bottom():
+            print("✅ At bottom of page")
+            self.tts.speak("At bottom of page")
+        else:
+            print("❌ Failed to scroll")
+            self.tts.speak("Failed to scroll")
+    
+    def _handle_screenshot(self):
+        """Handle take screenshot"""
+        print("\n📸 Taking screenshot...")
+        self.tts.speak("Taking screenshot")
+        
+        success, filepath = self.screenshot.take_screenshot()
+        if success:
+            print(f"✅ Screenshot saved: {filepath}")
+            self.tts.speak("Screenshot saved successfully")
+        else:
+            print("❌ Failed to take screenshot")
+            self.tts.speak("Failed to take screenshot")
+    
+    def _handle_fullpage_screenshot(self):
+        """Handle full page screenshot"""
+        print("\n📸 Taking full page screenshot...")
+        self.tts.speak("Taking full page screenshot. This may take a moment.")
+        
+        success, filepath = self.screenshot.take_full_page_screenshot()
+        if success:
+            print(f"✅ Full page screenshot saved: {filepath}")
+            self.tts.speak("Full page screenshot saved successfully")
+        else:
+            print("❌ Failed to take full page screenshot")
+            self.tts.speak("Failed to take full page screenshot")
+    
+    def _handle_list_screenshots(self):
+        """Handle list screenshots"""
+        print("\n📸 Counting screenshots...")
+        count = self.screenshot.get_screenshot_count()
+        print(f"✅ You have {count} screenshot(s)")
+        self.tts.speak(f"You have {count} screenshot{'s' if count != 1 else ''}")
+    
+    def _handle_delete_screenshot(self):
+        """Handle delete last screenshot"""
+        print("\n🗑️ Deleting last screenshot...")
+        
+        screenshots = self.screenshot.list_screenshots()
+        if not screenshots:
+            print("❌ No screenshots found")
+            self.tts.speak("No screenshots to delete")
+            return
+        
+        if self.screenshot.delete_screenshot(screenshots[0]):
+            remaining = self.screenshot.get_screenshot_count()
+            print(f"✅ Screenshot deleted. {remaining} remaining")
+            self.tts.speak(f"Screenshot deleted. {remaining} remaining")
+        else:
+            print("❌ Failed to delete screenshot")
+            self.tts.speak("Failed to delete screenshot")
+    
+    def _handle_delete_all_screenshots(self):
+        """Handle delete all screenshots"""
+        count = self.screenshot.get_screenshot_count()
+        
+        if count == 0:
+            print("❌ No screenshots to delete")
+            self.tts.speak("No screenshots to delete")
+            return
+        
+        print(f"\n⚠️ This will delete all {count} screenshot(s)")
+        self.tts.speak(f"This will delete all {count} screenshots. Say yes to confirm.")
+        
+        confirmation = self.stt.listen()
+        
+        if confirmation and ('yes' in confirmation.lower() or 'confirm' in confirmation.lower()):
+            print("🗑️ Deleting all screenshots...")
+            deleted = self.screenshot.clear_all_screenshots()
+            print(f"✅ Deleted {deleted} screenshot(s)")
+            self.tts.speak(f"Deleted {deleted} screenshots")
+        else:
+            print("❌ Deletion cancelled")
+            self.tts.speak("Deletion cancelled")
+    
+    def _handle_switch_tab(self):
+        """Handle switch to next tab"""
+        print("\n🗂️ Switching to next tab...")
+        
+        if self.tabs.switch_to_next_tab():
+            time.sleep(1)
+            title = self.browser.get_page_title()
+            print(f"✅ Switched to: {title[:40]}...")
+            self.tts.speak(f"Switched to {title[:30]}")
+        else:
+            print("❌ Only one tab open")
+            self.tts.speak("Only one tab is open")
+    
+    def _handle_previous_tab(self):
+        """Handle switch to previous tab"""
+        print("\n🗂️ Switching to previous tab...")
+        
+        if self.tabs.switch_to_previous_tab():
+            time.sleep(1)
+            title = self.browser.get_page_title()
+            print(f"✅ Switched to: {title[:40]}...")
+            self.tts.speak(f"Switched to {title[:30]}")
+        else:
+            print("❌ Only one tab open")
+            self.tts.speak("Only one tab is open")
+    
+    def _handle_close_tab(self):
+        """Handle close current tab"""
+        print("\n🗂️ Closing current tab...")
+        
+        if self.tabs.close_current_tab():
+            remaining = self.tabs.get_tab_count()
+            if remaining > 0:
+                print(f"✅ Tab closed. {remaining} tab(s) remaining")
+                self.tts.speak(f"{remaining} tabs remaining")
+            else:
+                print("✅ Last tab closed. Browser will close.")
+                self.tts.speak("Browser closed")
+                self.running = False
+        else:
+            print("❌ Failed to close tab")
+            self.tts.speak("Failed to close tab")
+    
+    def _handle_new_tab(self):
+        """Handle open new tab"""
+        print("\n🗂️ Opening new tab...")
+        
+        if self.tabs.open_new_tab("https://www.google.com"):
+            count = self.tabs.get_tab_count()
+            print(f"✅ New tab opened. Total: {count} tab(s)")
+            self.tts.speak(f"New tab opened. Total {count} tabs")
+        else:
+            print("❌ Failed to open new tab")
+            self.tts.speak("Failed to open new tab")
+    
+    def _handle_close_browser(self):
+        """Handle close browser"""
+        print("\n🌐 Closing browser...")
+        self.tts.speak("Closing browser. Goodbye!")
+        self.running = False
+    
+    def cleanup(self):
+        """Cleanup resources"""
+        print("\n" + "=" * 80)
+        print("🧹 CLEANING UP...")
+        print("=" * 80)
+        
+        try:
+            if self.browser and self.browser.is_open():
+                print("   ├── Closing browser...")
+                self.browser.close_browser()
+                print("   ✅ Browser closed")
+            
+            print("\n✅ Voice Assistant stopped gracefully")
+            logger.info("Voice Assistant stopped")
+            
+        except Exception as e:
+            print(f"   ⚠️ Error during cleanup: {e}")
+            logger.error(f"Cleanup error: {e}")
+        
+        print("=" * 80)
+
+# ==================== ENTRY POINT ====================
+
+def main():
+    """Main entry point"""
+    try:
+        # Create assistant instance
+        assistant = VoiceAssistant()
+        
+        # Start the assistant
+        assistant.start()
+        
+    except KeyboardInterrupt:
+        print("\n\n⚠️ Interrupted by user (Ctrl+C)")
+        
+    except Exception as e:
+        print(f"\n\n❌ Fatal error: {e}")
+        logger.error(f"Fatal error: {e}", exc_info=True)
+        
+    finally:
+        print("\n👋 Thank you for using Voice Assistant!")
+        print("=" * 80 + "\n")
+
+if __name__ == "__main__":
+    main()
