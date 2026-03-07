@@ -24,6 +24,7 @@ from src.automation.youtube_controller import YouTubeController
 from src.commands.command_parser import CommandParser
 from src.core.logger import setup_logger
 
+
 logger = setup_logger(__name__)
 
 class VoiceAssistant:

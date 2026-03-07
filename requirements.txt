@@ -30,3 +30,4 @@ requests==2.31.0                # HTTP requests
 markdownify==0.11.6             # Convert HTML to Markdown
 radon==6.0.1                    # Code complexity metrics
 bandit==1.7.7                   # Security vulnerability scanner
+pyperclip

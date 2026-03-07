@@ -88,3 +88,17 @@ Add advanced features
 Improve existing features
 
 "count screenshots"
+
+| # | You Say | Intent | Assistant Does | Output |
+|---|---------|--------|----------------|--------|
+| 1 | "hey assistant" | wake | Wakes up | Voice + Terminal |
+| 2 | "open wikipedia AI" | navigate | Opens Wikipedia | Voice + Browser |
+| 3 | "analyze this page" | analyze_current_page | Full analysis | Voice + Terminal |
+| 4 | "give me key points" | get_key_points | Extract points | Voice + Terminal |
+| 5 | "summarize page" | summarize_page | Quick summary | Voice + Terminal |
+| 6 | "analyze code file test.py" | analyze_code_file | Security scan | Voice + Terminal |
+| 7 | "check clipboard" | analyze_code_clipboard | Analyze copied code | Voice + Terminal |
+| 8 | "open github" | navigate | Opens GitHub | Voice + Browser |
+| 9 | "search for python tutorials" | search | Google search | Voice + Browser |
+| 10 | "sleep" | sleep | Sleep mode | Voice only |
+| 11 | "goodbye" | exit | Quit & cleanup | Voice + Terminal |

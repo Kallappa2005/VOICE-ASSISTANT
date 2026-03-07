@@ -10,6 +10,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.action_chains import ActionChains
 from src.core.logger import setup_logger
 import time
+import re
 
 logger = setup_logger(__name__)
 
@@ -37,6 +38,7 @@ class Navigation:
             'linkedin': 'https://www.linkedin.com',
             'amazon': 'https://www.amazon.in',
             'flipkart': 'https://www.flipkart.com',
+            'wikipedia': 'https://en.wikipedia.org',  # Added
         }
         logger.info("Navigation handler initialized")
     
@@ -85,10 +87,10 @@ class Navigation:
     
     def open_website(self, site_name, new_tab=False):
         """
-        Open common website by name
+        Open website by name (with AI-enhanced topic detection)
         
         Args:
-            site_name (str): Name of website (e.g., 'youtube', 'google')
+            site_name (str): Name of website or "site topic" (e.g., 'wikipedia python')
             new_tab (bool): Open in new tab if True
         
         Returns:
@@ -96,11 +98,58 @@ class Navigation:
         """
         try:
             site_name = site_name.lower().strip()
+            logger.info(f"Open website request: '{site_name}'")
             
-            # Check if it's a common site
+            # ==================== NEW: AI-ENHANCED TOPIC DETECTION ====================
+            
+            # Check for "wikipedia [topic]" pattern
+            if 'wikipedia' in site_name:
+                # Extract topic after "wikipedia"
+                match = re.search(r'wikipedia\s+(.+)', site_name)
+                if match:
+                    topic = match.group(1).strip()
+                    if topic:
+                        # Wikipedia with topic
+                        url = f"https://en.wikipedia.org/wiki/{topic.replace(' ', '_')}"
+                        logger.info(f"Wikipedia topic detected: '{topic}' → {url}")
+                        success = self.goto_url(url, new_tab=new_tab)
+                        return success, url
+                
+                # Just "wikipedia" (no topic)
+                url = self.common_sites['wikipedia']
+                logger.info(f"Wikipedia homepage")
+                success = self.goto_url(url, new_tab=new_tab)
+                return success, url
+            
+            # Check for "youtube [search]" pattern
+            if 'youtube' in site_name and site_name != 'youtube':
+                # Extract search query
+                match = re.search(r'youtube\s+(.+)', site_name)
+                if match:
+                    query = match.group(1).strip()
+                    if query:
+                        # YouTube search
+                        url = f"https://www.youtube.com/results?search_query={query.replace(' ', '+')}"
+                        logger.info(f"YouTube search detected: '{query}' → {url}")
+                        success = self.goto_url(url, new_tab=new_tab)
+                        return success, url
+            
+            # Check for "github [repo/user]" pattern
+            if 'github' in site_name and site_name != 'github':
+                match = re.search(r'github\s+(.+)', site_name)
+                if match:
+                    repo = match.group(1).strip().replace(' ', '/')
+                    url = f"https://github.com/{repo}"
+                    logger.info(f"GitHub repo detected: '{repo}' → {url}")
+                    success = self.goto_url(url, new_tab=new_tab)
+                    return success, url
+            
+            # ==================== ORIGINAL LOGIC (PRESERVED) ====================
+            
+            # Check if it's a common site (single word)
             if site_name in self.common_sites:
                 url = self.common_sites[site_name]
-                logger.info(f"Opening {site_name}: {url}")
+                logger.info(f"Opening common site '{site_name}': {url}")
                 success = self.goto_url(url, new_tab=new_tab)
                 return success, url
             
@@ -110,10 +159,24 @@ class Navigation:
                 success = self.goto_url(site_name, new_tab=new_tab)
                 return success, site_name
             
-            # Try adding .com
+            # Try removing spaces and adding .com (for multi-word domains)
             else:
-                url = f"{site_name}.com"
-                logger.info(f"Trying: {url}")
+                # First try: Remove spaces
+                clean_name = site_name.replace(' ', '')
+                url = f"{clean_name}.com"
+                logger.info(f"Trying domain (spaces removed): {url}")
+                
+                try:
+                    success = self.goto_url(url, new_tab=new_tab)
+                    if success:
+                        return success, url
+                except:
+                    pass
+                
+                # Second try: Use first word only
+                first_word = site_name.split()[0]
+                url = f"{first_word}.com"
+                logger.info(f"Trying domain (first word): {url}")
                 success = self.goto_url(url, new_tab=new_tab)
                 return success, url
                 

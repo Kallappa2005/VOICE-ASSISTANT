@@ -12,12 +12,15 @@ class CommandParser:
     
     def __init__(self):
         """Initialize command parser"""
+        # Navigation keywords
         self.navigation_keywords = [
             'open', 'go to', 'navigate to', 'visit', 'show me', 'take me to'
         ]
         self.search_keywords = [
             'search for', 'search', 'find', 'look for', 'google'
         ]
+        
+        # Scrolling keywords
         self.scroll_down_keywords = [
             'scroll down', 'page down', 'go down', 'move down'
         ]
@@ -30,6 +33,8 @@ class CommandParser:
         self.scroll_bottom_keywords = [
             'scroll to bottom', 'go to bottom', 'bottom of page', 'scroll bottom'
         ]
+        
+        # Tab management keywords
         self.close_tab_keywords = [
             'close tab', 'close this tab', 'close current tab'
         ]
@@ -45,7 +50,8 @@ class CommandParser:
         self.new_tab_keywords = [
             'new tab', 'open new tab', 'create tab'
         ]
-        # SCREENSHOT KEYWORDS
+        
+        # Screenshot keywords
         self.fullpage_screenshot_keywords = [
             'full page screenshot', 'full screenshot', 'entire page screenshot'
         ]
@@ -66,7 +72,7 @@ class CommandParser:
             'take picture', 'capture page', 'snap'
         ]
         
-        # YOUTUBE KEYWORDS - NEW
+        # YouTube keywords
         self.youtube_search_keywords = [
             'search on youtube', 'youtube search', 'search youtube',
             'find on youtube', 'youtube find'
@@ -74,35 +80,84 @@ class CommandParser:
         self.open_youtube_keywords = [
             'open youtube', 'go to youtube', 'youtube'
         ]
-
-        # NEW: Play video by number
+        
+        # Video playback keywords
         self.play_video_keywords = [
             'play video', 'play the video', 'open video', 'play that video'
         ]
-        # Pause video - MORE SPECIFIC
         self.pause_video_keywords = [
             'pause video', 'pause the video', 'pause this video', 'pause'
         ]
-        # Resume video - MORE SPECIFIC
         self.resume_video_keywords = [
             'resume video', 'resume the video', 'continue video', 
             'resume', 'unpause', 'unpause video'
         ]
-        # Stop video - NEW
         self.stop_video_keywords = [
             'stop video', 'stop the video', 'stop playback'
         ]
         
+        # ==================== AI KEYWORDS (UPDATED - BOTH SPELLINGS) ====================
+        
+        # Wake/Sleep keywords
+        self.wake_keywords = [
+            'hey assistant', 'wake up', 'hello assistant', 'hey there'
+        ]
+        self.sleep_keywords = [
+            'sleep', 'go to sleep', 'sleep mode'
+        ]
+        self.exit_keywords = [
+            'exit', 'quit', 'goodbye', 'bye', 'close assistant'
+        ]
+        
+        # Webpage analysis keywords (BOTH AMERICAN & BRITISH SPELLING)
+        self.analyze_page_keywords = [
+            # American spelling
+            'analyze this page', 'analyze current page', 'analyze page',
+            'analyze the page', 'check this page', 'review this page',
+            # British spelling
+            'analyse this page', 'analyse current page', 'analyse page',
+            'analyse the page',
+        ]
+        self.summarize_page_keywords = [
+            # American spelling
+            'summarize this page', 'summarize page', 'page summary',
+            'summarize the page', 'give me summary', 'what is this page about',
+            # British spelling
+            'summarise this page', 'summarise page', 'summarise the page',
+        ]
+        self.key_points_keywords = [
+            'key points', 'main points', 'give me key points',
+            'what are the key points', 'extract key points', 'important points',
+            'show key points', 'tell me key points',
+        ]
+        
+        # Code analysis keywords (BOTH AMERICAN & BRITISH SPELLING)
+        self.analyze_code_file_keywords = [
+            # American spelling
+            'analyze code file', 'check code file', 'review code file',
+            'analyze file', 'check file for security',
+            'analyze code from file', 'check code from file',  # Added variations
+            # British spelling
+            'analyse code file', 'analyse file',
+            'analyse code from file', 'check code from file',  # Added variations
+        ]
+        self.analyze_code_clipboard_keywords = [
+            # American spelling
+            'analyze clipboard', 'check clipboard', 'analyze code clipboard',
+            'check code', 'analyze code', 'review code',
+            # British spelling
+            'analyse clipboard', 'analyse code clipboard', 'analyse code',
+        ]
+        
         logger.info("Command parser initialized")
     
-    def parse(self, command , context=None):
+    def parse(self, command, context=None):
         """
         Parse voice command
         
         Args:
             command (str): Voice command text
             context (dict): Optional context (e.g., {'on_video_page': True})
-        
         
         Returns:
             dict: Parsed command with intent and parameters
@@ -116,7 +171,72 @@ class CommandParser:
         if context:
             logger.info(f"Context: {context}")
         
-        # ====== YOUTUBE COMMANDS - CHECK FIRST ======
+        # ==================== AI COMMANDS (CHECK FIRST - HIGHEST PRIORITY) ====================
+        
+        # Wake command
+        for keyword in self.wake_keywords:
+            if keyword in command:
+                logger.info("Wake intent detected")
+                return {'intent': 'wake', 'params': None}
+        
+        # Sleep command
+        for keyword in self.sleep_keywords:
+            if keyword in command:
+                logger.info("Sleep intent detected")
+                return {'intent': 'sleep', 'params': None}
+        
+        # Exit command
+        for keyword in self.exit_keywords:
+            if keyword in command:
+                logger.info("Exit intent detected")
+                return {'intent': 'exit', 'params': None}
+        
+        # Analyze current page (HIGH PRIORITY - BEFORE NAVIGATION)
+        for keyword in self.analyze_page_keywords:
+            if keyword in command:
+                logger.info("Analyze page intent detected")
+                return {'intent': 'analyze_current_page', 'params': None}
+        
+        # Summarize page (HIGH PRIORITY - BEFORE NAVIGATION)
+        for keyword in self.summarize_page_keywords:
+            if keyword in command:
+                logger.info("Summarize page intent detected")
+                return {'intent': 'summarize_page', 'params': None}
+        
+        # Get key points (HIGH PRIORITY - BEFORE NAVIGATION)
+        for keyword in self.key_points_keywords:
+            if keyword in command:
+                logger.info("Get key points intent detected")
+                return {'intent': 'get_key_points', 'params': None}
+        
+        # Analyze code file (HIGH PRIORITY - BEFORE NAVIGATION)
+        for keyword in self.analyze_code_file_keywords:
+            if keyword in command:
+                # Extract file path
+                # Example: "analyze code file test.py" or "analyze code file desktop/test.py"
+                parts = command.split('file')
+                if len(parts) > 1:
+                    file_path = parts[1].strip()
+                    logger.info(f"Analyze code file intent detected: {file_path}")
+                    return {
+                        'intent': 'analyze_code_file',
+                        'params': {'file_path': file_path}
+                    }
+                else:
+                    # No file path specified
+                    logger.info("Analyze code file intent detected (no path)")
+                    return {
+                        'intent': 'analyze_code_file',
+                        'params': {'file_path': ''}
+                    }
+        
+        # Analyze clipboard (HIGH PRIORITY - BEFORE NAVIGATION)
+        for keyword in self.analyze_code_clipboard_keywords:
+            if keyword in command:
+                logger.info("Analyze clipboard intent detected")
+                return {'intent': 'analyze_code_clipboard', 'params': None}
+        
+        # ==================== YOUTUBE COMMANDS ====================
         
         # Check for YouTube search
         for keyword in self.youtube_search_keywords:
@@ -135,10 +255,10 @@ class CommandParser:
             if command == keyword or command.startswith(keyword + ' '):
                 logger.info("Open YouTube intent detected")
                 return {'intent': 'open_youtube', 'params': None}
+        
+        # ==================== VIDEO PLAYBACK CONTROL ====================
             
-        # ====== VIDEO PLAYBACK CONTROL (Context-Aware) ======
-            
-         # Check for STOP VIDEO first (most specific)
+        # Check for STOP VIDEO first (most specific)
         for keyword in self.stop_video_keywords:
             if keyword in command:
                 logger.info("Stop video intent detected")
@@ -155,8 +275,7 @@ class CommandParser:
             if keyword in command:
                 logger.info("Resume video intent detected")
                 return {'intent': 'resume_video', 'params': None}
-                
-
+        
         # Check for PLAY VIDEO (with number OR resume if on video page)
         for keyword in self.play_video_keywords:
             if keyword in command:
@@ -206,60 +325,8 @@ class CommandParser:
                         'intent': 'play_video',
                         'params': {'video_number': video_num}
                     }
-                
-        # Check for play video with number
-        # for keyword in self.play_video_keywords:
-        #     if keyword in command:
-        #         # Extract number from command
-        #         import re
-                
-        #         # Word to number mapping
-        #         word_to_num = {
-        #             'first': 1, 'second': 2, 'third': 3, 'fourth': 4, 'fifth': 5,
-        #             'sixth': 6, 'seventh': 7, 'eighth': 8, 'ninth': 9, 'tenth': 10,
-        #             'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
-        #             'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
-        #         }
-                
-        #         video_num = None
-                
-        #         # Check for number words
-        #         for word, num in word_to_num.items():
-        #             if word in command:
-        #                 video_num = num
-        #                 break
-                
-        #         # Check for digits
-        #         if not video_num:
-        #             numbers = re.findall(r'\d+', command)
-        #             if numbers:
-        #                 video_num = int(numbers[0])
-                
-        #         # Default to 1 if no number specified
-        #         if not video_num:
-        #             video_num = 1
-                
-        #         logger.info(f"Play video intent detected: video #{video_num}")
-        #         return {
-        #             'intent': 'play_video',
-        #             'params': {'video_number': video_num}
-        #         }
         
-        # Check for pause video
-        for keyword in self.pause_video_keywords:
-            if keyword in command:
-                logger.info("Pause video intent detected")
-                return {'intent': 'pause_video', 'params': None}
-        
-        # Check for resume/play video (when on video page)
-        for keyword in self.resume_video_keywords:
-            if keyword in command:
-                logger.info("Resume video intent detected")
-                return {'intent': 'resume_video', 'params': None}
-        
-        
-        
-        # ====== SCREENSHOT COMMANDS ======
+        # ==================== SCREENSHOT COMMANDS ====================
         
         # Check for delete all screenshots FIRST
         for keyword in self.delete_all_screenshots_keywords:
@@ -291,7 +358,7 @@ class CommandParser:
                 logger.info("Screenshot intent detected")
                 return {'intent': 'screenshot', 'params': None}
         
-        # ====== OTHER COMMANDS ======
+        # ==================== TAB MANAGEMENT ====================
         
         # Check for close browser
         for keyword in self.close_browser_keywords:
@@ -322,6 +389,8 @@ class CommandParser:
             if keyword in command:
                 logger.info("Switch tab intent detected")
                 return {'intent': 'switch_tab', 'params': None}
+        
+        # ==================== SCROLLING ====================
         
         # Check for scroll to top
         for keyword in self.scroll_top_keywords:
@@ -365,6 +434,8 @@ class CommandParser:
                     'params': {'amount': amount}
                 }
         
+        # ==================== NAVIGATION & SEARCH (LOWEST PRIORITY) ====================
+        
         # Check for navigation commands
         for keyword in self.navigation_keywords:
             if keyword in command:
@@ -385,7 +456,7 @@ class CommandParser:
                     'params': {'query': query}
                 }
         
-        # Default: treat as website name
+        # Default: treat as website name (LAST RESORT)
         logger.info(f"Default navigation: {command}")
         return {
             'intent': 'navigate',

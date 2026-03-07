@@ -1,11 +1,15 @@
 """
 Browser Controller
-Handles browser operations like opening, closing, and managing browser instances
+Handles all browser operations
 """
 
+import time
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from webdriver_manager.chrome import ChromeDriverManager
 from src.core.logger import setup_logger
 import os
@@ -13,318 +17,275 @@ import os
 logger = setup_logger(__name__)
 
 class BrowserController:
-    """Manages browser operations"""
+    """Control Chrome browser with Selenium"""
     
     def __init__(self):
         """Initialize browser controller"""
         self.driver = None
-        self.is_browser_open = False
+        self._is_open = False
         logger.info("Browser Controller initialized")
     
-    def open_chrome(self, headless=False, start_url="https://www.google.com"):
+    def open_chrome(self):
         """
         Open Chrome browser
         
-        Args:
-            headless (bool): Run browser in headless mode (no GUI)
-            start_url (str): URL to open on start (default: https://www.google.com)
-        
         Returns:
-            bool: True if successful, False otherwise
+            bool: Success status
         """
         try:
-            if self.is_browser_open:
-                logger.warning("Browser is already open")
-                return False
-            
             logger.info("Opening Chrome browser...")
             
-            # Configure Chrome options
+            # Chrome options
             chrome_options = Options()
-            
-            if headless:
-                chrome_options.add_argument('--headless')
-            
-            # Additional options for stability
-            chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--disable-dev-shm-usage')
-            chrome_options.add_argument('--start-maximized')
-            chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-            chrome_options.add_argument('--disable-gpu')
-            chrome_options.add_argument('--disable-extensions')
-            
-            # Suppress logs
-            chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
+            chrome_options.add_argument("--start-maximized")
+            chrome_options.add_argument("--disable-blink-features=AutomationControlled")
+            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
             chrome_options.add_experimental_option('useAutomationExtension', False)
             
-            # Set service with proper error handling
-            try:
-                # Try to install/get chromedriver
-                driver_path = ChromeDriverManager().install()
-                logger.info(f"ChromeDriver path: {driver_path}")
-                
-                # Verify the driver file exists and is executable
-                if not os.path.exists(driver_path):
-                    raise Exception(f"ChromeDriver not found at: {driver_path}")
-                
-                service = Service(driver_path)
-                
-            except Exception as driver_error:
-                logger.error(f"ChromeDriver setup error: {driver_error}")
-                
-                # Fallback: Try system PATH chromedriver
-                logger.info("Trying to use system chromedriver...")
-                service = Service()
+            # ==================== FIX: Get correct ChromeDriver path ====================
             
-            # Initialize driver
+            try:
+                # Install/Get ChromeDriver
+                driver_path = ChromeDriverManager().install()
+                logger.info(f"ChromeDriver path from manager: {driver_path}")
+                
+                # FIX: Extract the directory and find chromedriver.exe
+                driver_dir = os.path.dirname(driver_path)
+                
+                # Look for chromedriver.exe in the directory
+                possible_paths = [
+                    os.path.join(driver_dir, 'chromedriver.exe'),
+                    os.path.join(driver_dir, 'chromedriver-win32', 'chromedriver.exe'),
+                    driver_path,  # Try original path
+                ]
+                
+                chromedriver_exe = None
+                for path in possible_paths:
+                    if os.path.exists(path) and path.endswith('.exe'):
+                        chromedriver_exe = path
+                        logger.info(f"Found ChromeDriver at: {chromedriver_exe}")
+                        break
+                
+                if not chromedriver_exe:
+                    # If not found, search the directory
+                    for root, dirs, files in os.walk(driver_dir):
+                        for file in files:
+                            if file == 'chromedriver.exe':
+                                chromedriver_exe = os.path.join(root, file)
+                                logger.info(f"Found ChromeDriver via search: {chromedriver_exe}")
+                                break
+                        if chromedriver_exe:
+                            break
+                
+                if not chromedriver_exe:
+                    raise FileNotFoundError("Could not find chromedriver.exe")
+                
+                # Create service with correct path
+                service = Service(chromedriver_exe)
+                
+            except Exception as e:
+                logger.error(f"Error setting up ChromeDriver: {e}")
+                raise
+            
+            # ==================== Initialize WebDriver ====================
+            
+            # Create driver
             self.driver = webdriver.Chrome(service=service, options=chrome_options)
             
-            # Navigate to blank page or specified URL
-            if start_url:
-                self.driver.get(start_url)
-                logger.info(f"Opened with start URL: {start_url}")
+            # Set page load timeout
+            self.driver.set_page_load_timeout(30)
             
-            self.is_browser_open = True
-            logger.info("Chrome browser opened successfully")
+            self._is_open = True
+            logger.info("✅ Chrome browser opened successfully")
             
             return True
             
         except Exception as e:
             logger.error(f"Failed to open Chrome browser: {e}")
             logger.error(f"Error type: {type(e).__name__}")
-            return False
-    
-    def close_browser(self):
-        """
-        Close the browser completely
-        
-        Returns:
-            bool: True if successful, False otherwise
-        """
-        try:
-            if not self.is_browser_open or self.driver is None:
-                logger.warning("No browser to close")
-                return False
-            
-            logger.info("Closing browser...")
-            self.driver.quit()
-            self.driver = None
-            self.is_browser_open = False
-            logger.info("Browser closed successfully")
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Failed to close browser: {e}")
+            self._is_open = False
             return False
     
     def get_driver(self):
         """
-        Get the current driver instance
+        Get the Selenium WebDriver instance
         
         Returns:
-            webdriver: Current driver or None
+            WebDriver: Selenium driver instance or None
         """
         return self.driver
     
     def is_open(self):
+        """Check if browser is open"""
+        return self._is_open and self.driver is not None
+    
+    def navigate_to(self, url):
         """
-        Check if browser is open
+        Navigate to URL
+        
+        Args:
+            url: URL to navigate to
         
         Returns:
-            bool: True if browser is open
+            bool: Success status
         """
-        return self.is_browser_open
+        if not self.is_open():
+            logger.error("Browser is not open")
+            return False
+        
+        try:
+            logger.info(f"Navigating to: {url}")
+            self.driver.get(url)
+            time.sleep(2)  # Wait for page load
+            return True
+            
+        except Exception as e:
+            logger.error(f"Navigation failed: {e}")
+            return False
     
     def get_current_url(self):
-        """
-        Get current URL
-        
-        Returns:
-            str: Current URL or None
-        """
-        try:
-            if self.driver:
-                return self.driver.current_url
-            return None
-        except Exception as e:
-            logger.error(f"Error getting current URL: {e}")
-            return None
+        """Get current URL"""
+        if self.is_open():
+            return self.driver.current_url
+        return None
     
     def get_page_title(self):
-        """
-        Get current page title
-        
-        Returns:
-            str: Page title or None
-        """
+        """Get current page title"""
+        if self.is_open():
+            return self.driver.title
+        return None
+    
+    def close_browser(self):
+        """Close browser"""
         try:
             if self.driver:
-                return self.driver.title
-            return None
+                logger.info("Closing browser...")
+                self.driver.quit()
+                self._is_open = False
+                logger.info("✅ Browser closed")
+                return True
         except Exception as e:
-            logger.error(f"Error getting page title: {e}")
+            logger.error(f"Error closing browser: {e}")
+        
+        return False
+    
+    def execute_script(self, script):
+        """
+        Execute JavaScript
+        
+        Args:
+            script: JavaScript code
+        
+        Returns:
+            Result of script execution
+        """
+        if not self.is_open():
             return None
-
-
-# """
-# Browser Controller
-# Handles browser operations like opening, closing, and managing browser instances
-# """
-
-# from selenium import webdriver
-# from selenium.webdriver.chrome.service import Service
-# from selenium.webdriver.chrome.options import Options
-# from webdriver_manager.chrome import ChromeDriverManager
-# from src.core.logger import setup_logger
-# import os
-
-# logger = setup_logger(__name__)
-
-# class BrowserController:
-#     """Manages browser operations"""
-    
-#     def __init__(self):
-#         """Initialize browser controller"""
-#         self.driver = None
-#         self.is_browser_open = False
-#         logger.info("Browser Controller initialized")
-    
-#     def open_chrome(self, headless=False):
-#         """
-#         Open Chrome browser
         
-#         Args:
-#             headless (bool): Run browser in headless mode (no GUI)
-        
-#         Returns:
-#             bool: True if successful, False otherwise
-#         """
-#         try:
-#             if self.is_browser_open:
-#                 logger.warning("Browser is already open")
-#                 return False
-            
-#             logger.info("Opening Chrome browser...")
-            
-#             # Configure Chrome options
-#             chrome_options = Options()
-            
-#             if headless:
-#                 chrome_options.add_argument('--headless')
-            
-#             # Additional options for stability
-#             chrome_options.add_argument('--no-sandbox')
-#             chrome_options.add_argument('--disable-dev-shm-usage')
-#             chrome_options.add_argument('--start-maximized')
-#             chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-#             chrome_options.add_argument('--disable-gpu')
-#             chrome_options.add_argument('--disable-extensions')
-            
-#             # Suppress logs
-#             chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
-#             chrome_options.add_experimental_option('useAutomationExtension', False)
-            
-#             # Set service with proper error handling
-#             try:
-#                 # Try to install/get chromedriver
-#                 driver_path = ChromeDriverManager().install()
-#                 logger.info(f"ChromeDriver path: {driver_path}")
-                
-#                 # Verify the driver file exists and is executable
-#                 if not os.path.exists(driver_path):
-#                     raise Exception(f"ChromeDriver not found at: {driver_path}")
-                
-#                 service = Service(driver_path)
-                
-#             except Exception as driver_error:
-#                 logger.error(f"ChromeDriver setup error: {driver_error}")
-                
-#                 # Fallback: Try system PATH chromedriver
-#                 logger.info("Trying to use system chromedriver...")
-#                 service = Service()
-            
-#             # Initialize driver
-#             self.driver = webdriver.Chrome(service=service, options=chrome_options)
-            
-#             self.is_browser_open = True
-#             logger.info("Chrome browser opened successfully")
-            
-#             return True
-            
-#         except Exception as e:
-#             logger.error(f"Failed to open Chrome browser: {e}")
-#             logger.error(f"Error type: {type(e).__name__}")
-#             return False
+        try:
+            return self.driver.execute_script(script)
+        except Exception as e:
+            logger.error(f"Script execution failed: {e}")
+            return None
     
-#     def close_browser(self):
-#         """
-#         Close the browser completely
+    def scroll_down(self, amount='medium'):
+        """
+        Scroll down the page
         
-#         Returns:
-#             bool: True if successful, False otherwise
-#         """
-#         try:
-#             if not self.is_browser_open or self.driver is None:
-#                 logger.warning("No browser to close")
-#                 return False
-            
-#             logger.info("Closing browser...")
-#             self.driver.quit()
-#             self.driver = None
-#             self.is_browser_open = False
-#             logger.info("Browser closed successfully")
-            
-#             return True
-            
-#         except Exception as e:
-#             logger.error(f"Failed to close browser: {e}")
-#             return False
+        Args:
+            amount: 'small', 'medium', or 'large'
+        """
+        if not self.is_open():
+            return False
+        
+        scroll_pixels = {
+            'small': 300,
+            'medium': 600,
+            'large': 1200
+        }
+        
+        pixels = scroll_pixels.get(amount, 600)
+        
+        try:
+            self.execute_script(f"window.scrollBy(0, {pixels});")
+            return True
+        except Exception as e:
+            logger.error(f"Scroll failed: {e}")
+            return False
     
-#     def get_driver(self):
-#         """
-#         Get the current driver instance
+    def scroll_up(self, amount='medium'):
+        """
+        Scroll up the page
         
-#         Returns:
-#             webdriver: Current driver or None
-#         """
-#         return self.driver
+        Args:
+            amount: 'small', 'medium', or 'large'
+        """
+        if not self.is_open():
+            return False
+        
+        scroll_pixels = {
+            'small': 300,
+            'medium': 600,
+            'large': 1200
+        }
+        
+        pixels = scroll_pixels.get(amount, 600)
+        
+        try:
+            self.execute_script(f"window.scrollBy(0, -{pixels});")
+            return True
+        except Exception as e:
+            logger.error(f"Scroll failed: {e}")
+            return False
     
-#     def is_open(self):
-#         """
-#         Check if browser is open
+    def scroll_to_top(self):
+        """Scroll to top of page"""
+        if not self.is_open():
+            return False
         
-#         Returns:
-#             bool: True if browser is open
-#         """
-#         return self.is_browser_open
+        try:
+            self.execute_script("window.scrollTo(0, 0);")
+            return True
+        except Exception as e:
+            logger.error(f"Scroll to top failed: {e}")
+            return False
     
-#     def get_current_url(self):
-#         """
-#         Get current URL
+    def scroll_to_bottom(self):
+        """Scroll to bottom of page"""
+        if not self.is_open():
+            return False
         
-#         Returns:
-#             str: Current URL or None
-#         """
-#         try:
-#             if self.driver:
-#                 return self.driver.current_url
-#             return None
-#         except Exception as e:
-#             logger.error(f"Error getting current URL: {e}")
-#             return None
+        try:
+            self.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            return True
+        except Exception as e:
+            logger.error(f"Scroll to bottom failed: {e}")
+            return False
     
-#     def get_page_title(self):
-#         """
-#         Get current page title
+    def take_screenshot(self, filename):
+        """
+        Take a screenshot
         
-#         Returns:
-#             str: Page title or None
-#         """
-#         try:
-#             if self.driver:
-#                 return self.driver.title
-#             return None
-#         except Exception as e:
-#             logger.error(f"Error getting page title: {e}")
-#             return None
+        Args:
+            filename: Path to save screenshot
+        
+        Returns:
+            bool: Success status
+        """
+        if not self.is_open():
+            logger.error("Browser is not open")
+            return False
+        
+        try:
+            self.driver.save_screenshot(filename)
+            logger.info(f"Screenshot saved: {filename}")
+            return True
+        except Exception as e:
+            logger.error(f"Screenshot failed: {e}")
+            return False
+    
+    def get_page_source(self):
+        """Get page HTML source"""
+        if self.is_open():
+            return self.driver.page_source
+        return None
