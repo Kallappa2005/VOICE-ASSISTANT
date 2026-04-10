@@ -22,6 +22,7 @@ from src.automation.scroll_handler import ScrollHandler
 from src.automation.screenshot_handler import ScreenshotHandler
 from src.automation.youtube_controller import YouTubeController
 from src.automation.coding_mode import CodingMode
+from src.automation.study_mode import StudyMode
 from src.commands.command_parser import CommandParser
 from src.core.logger import setup_logger
 
@@ -63,6 +64,11 @@ class VoiceAssistant:
         print("   ├── Coding Mode...")
         self.coding_mode = CodingMode()
         print("   ✅ Coding Mode ready")
+        
+        # Initialize Study Mode (browser-independent — uses config.json)
+        print("   ├── Study Mode...")
+        self.study_mode = StudyMode()
+        print("   ✅ Study Mode ready")
         
         # Browser-dependent handlers (initialized after browser opens)
         self.nav = None
@@ -172,7 +178,15 @@ class VoiceAssistant:
                 "'launch project'- Open project in VS Code + terminal + browser",
                 "  (edit config.json in project root to change settings)",
             ],
-            "🔊 Noisy Room Tips": [
+            "� Study Mode": [
+                "'study mode' [topic]        - Launch study environment",
+                "'start studying' [topic]    - Same as above",
+                "'focus mode' [topic]        - Same as above",
+                "'study session' [topic]     - Same as above",
+                "  Example: 'study mode React hooks', 'start studying Python'",
+                "  (edit config.json to customize YouTube, docs, and note app)",
+            ],
+            "�🔊 Noisy Room Tips": [
                 "Speak clearly and slightly louder than normal",
                 "Assistant retries 3× if it mishears — wait for the retry prompt",
                 "Move closer to the microphone if possible",
@@ -379,6 +393,10 @@ class VoiceAssistant:
             elif intent == 'start_coding':
                 self._handle_start_coding()
             
+            elif intent == 'start_study':
+                params = parsed.get('params', {})
+                self._handle_start_study(params)
+            
             elif intent == 'unknown':
                 print("❌ Command not recognized")
                 self.tts.speak("I'm not sure what you mean. Say help to see available commands.")
@@ -577,6 +595,47 @@ class VoiceAssistant:
         else:  # 'error'
             print("❌ Error while trying to skip ad")
             self.tts.speak("Sorry, something went wrong while trying to skip the ad.")
+    
+    def _handle_start_study(self, params):
+        """Handle 'study mode' voice command — launches focused study environment."""
+        topic = params.get('topic') if params else None
+        
+        topic_label = f" ({topic})" if topic else " (default topic)"
+        print(f"\n📚 Starting Study Mode{topic_label}...")
+        
+        if topic:
+            self.tts.speak(f"Starting study mode. Opening YouTube, documentation, and notepad for {topic}. Please wait.")
+        else:
+            self.tts.speak("Starting study mode. Opening YouTube, documentation, and notepad. Please wait.")
+        
+        result = self.study_mode.start_study_mode(topic=topic)
+        
+        if result['success']:
+            ok  = sum(1 for s in result['steps'] if s.startswith('✅'))
+            total = len(result['steps'])
+            
+            print(f"\n✅ Study Mode launched ({ok}/{total} steps succeeded)")
+            self.tts.speak(
+                "Study mode is ready. YouTube, documentation, and notepad have been opened. Good luck studying!"
+            )
+        else:
+            err = result.get('error', 'Unknown error')
+            print(f"\n❌ Study Mode failed: {err}")
+            
+            if 'config.json not found' in err:
+                self.tts.speak(
+                    "Could not start study mode. "
+                    "The config dot json file was not found. "
+                    "Please create it at the project root."
+                )
+            elif 'Invalid JSON' in err:
+                self.tts.speak(
+                    "Could not start study mode. "
+                    "The config dot json file contains invalid JSON. "
+                    "Please fix it and try again."
+                )
+            else:
+                self.tts.speak(f"Study mode failed: {err}")
     
     def _handle_start_coding(self):
         """Handle 'start coding' voice command — launches the full dev environment."""

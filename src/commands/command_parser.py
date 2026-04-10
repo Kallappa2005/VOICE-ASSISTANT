@@ -171,8 +171,23 @@ class CommandParser:
             'dev mode',
             'development mode',
         ]
-        
-        logger.info("Command parser initialized")
+
+        # ==================== STUDY MODE KEYWORDS ====================
+
+        # Triggered when user says "study mode", "start studying", etc.
+        # Checked after coding mode, before YouTube/navigation.
+        # Topic is extracted from the remainder of the command when present.
+        self.study_mode_keywords = [
+            'study mode',
+            'start studying',
+            'start study mode',
+            'begin studying',
+            'focus mode',
+            'learning mode',
+            'study session',
+            'start study session',
+        ]
+
     
     def parse(self, command, context=None):
         """
@@ -266,6 +281,27 @@ class CommandParser:
             if keyword in command:
                 logger.info("Start coding intent detected")
                 return {'intent': 'start_coding', 'params': None}
+        
+        # ==================== STUDY MODE ====================
+        
+        # Checked after coding mode, before YouTube/navigation
+        # Topic is extracted from the remainder of the command when present.
+        for keyword in self.study_mode_keywords:
+            if keyword in command:
+                # Extract topic after the keyword
+                # Example: "study mode react" → topic = "react"
+                # Example: "start studying javascript" → topic = "javascript"
+                parts = command.split(keyword, 1)
+                if len(parts) > 1:
+                    topic = parts[1].strip()
+                    logger.info(f"Start study intent detected (topic: '{topic}')")
+                    return {
+                        'intent': 'start_study',
+                        'params': {'topic': topic}
+                    }
+                else:
+                    logger.info("Start study intent detected (no topic)")
+                    return {'intent': 'start_study', 'params': None}
         
         # ==================== YOUTUBE COMMANDS ====================
         

@@ -4,5 +4,13 @@
     "terminal_command": "nodemon server.js",
     "docs_url": "https://react.dev",
     "github_url": "https://github.com/kallappa2005/VOICE-ASSISTANT"
+  },
+  "study_mode": {
+    "youtube_url": "https://www.youtube.com/results?search_query={topic}",
+    "docs_url": "https://www.geeksforgeeks.org",
+    "notepad_command": "notepad.exe",
+    "mute_notifications_command": "focus_assist_on",
+    "default_topic": "programming tutorial"
   }
 }
+
