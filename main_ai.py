@@ -57,8 +57,24 @@ class AIVoiceAssistant:
         self.ai_handler = None
         
         # State
-        self.is_awake = False
-        self.running = False
+        self.is_awake  = False
+        self.running   = False
+
+        # ── Agent system (developer automation) ───────────────────────────────
+        print("   |-- Agent System...")
+        try:
+            from src.agent.intent_enhancer import IntentEnhancer
+            from src.agent.task_planner    import TaskPlanner
+            from src.agent.execution_manager import ExecutionManager
+            self.intent_enhancer   = IntentEnhancer()
+            self.task_planner      = TaskPlanner()
+            self.execution_manager = ExecutionManager(tts=self.tts)
+            print("   [OK] Agent system ready")
+        except Exception as _agent_exc:
+            logger.warning(f"Agent system unavailable: {_agent_exc}")
+            self.intent_enhancer   = None
+            self.task_planner      = None
+            self.execution_manager = None
         
         print("\n✅ AI Voice Assistant initialized successfully!")
         logger.info("AI Voice Assistant initialized")
@@ -123,6 +139,12 @@ class AIVoiceAssistant:
                 "'open wikipedia artificial intelligence' - Open website",
                 "'search for [query]' - Search on Google",
             ],
+            "[AGENT] Developer Automation": [
+                "'build react project'          - Scaffold React + Vite + run",
+                "'build react project my-app'   - Named React project",
+                "'create node app with express' - Node.js + Express server",
+                "'create node app my-api'       - Named Node project",
+            ],
             "🤖 AI Webpage Analysis": [
                 "'analyze this page' - Full page analysis",
                 "'summarize this page' - Quick summary",
@@ -159,9 +181,18 @@ class AIVoiceAssistant:
                 if not command:
                     continue
                 
-                print(f"\n👤 You said: '{command}'")
+                print(f"\n[You said]: '{command}'")
                 logger.info(f"User command: {command}")
-                
+
+                # ── Developer task? Route to agent pipeline ───────────────────
+                if (self.is_awake
+                        and self.intent_enhancer
+                        and self.intent_enhancer.is_developer_task(command)):
+                    self._handle_developer_task_agent(command)
+                    command_count += 1
+                    continue
+
+                # ── Normal command flow ───────────────────────────────────────
                 # Parse command
                 parsed = self.parser.parse(command, context=None)
                 intent = parsed['intent']
@@ -293,16 +324,83 @@ class AIVoiceAssistant:
                 return True
             
             # Unknown command
-            print(f"⚠️ Intent '{intent}' not implemented yet")
+            print(f"[WARN] Intent '{intent}' not implemented yet")
             self.speaker.speak(f"I understand {intent}, but this feature is not ready yet.")
             return True
-            
+
         except Exception as e:
-            print(f"❌ Error handling command: {e}")
+            print(f"[ERR] Error handling command: {e}")
             logger.error(f"Command handling error: {e}", exc_info=True)
             self.speaker.speak("Sorry, I encountered an error.")
             return True
-    
+
+    def _handle_developer_task_agent(self, command: str):
+        """
+        Full agent pipeline for a developer automation task.
+        Called when IntentEnhancer detects a developer task in the voice command.
+
+        Pipeline
+        --------
+        command -> IntentEnhancer.enhance() -> TaskPlanner.plan()
+               -> ExecutionManager.show_plan() -> confirm -> execute()
+        """
+        try:
+            print("\n[AGENT] Developer task detected")
+            self.speaker.speak("Developer task detected. Analyzing command.")
+
+            # 1. Enhance
+            enhanced  = self.intent_enhancer.enhance(command)
+            goal      = enhanced.get('goal', 'unknown')
+            proj_name = enhanced.get('name') or 'auto-generated'
+            framework = enhanced.get('framework')
+
+            print(f"[AGENT] Goal      : {goal}")
+            print(f"[AGENT] Project   : {proj_name}")
+            if framework:
+                print(f"[AGENT] Framework : {framework}")
+
+            # 2. Plan
+            steps = self.task_planner.plan(enhanced)
+            if not steps:
+                print("[WARN] Could not create a plan for this command")
+                self.speaker.speak("Sorry, I could not create a plan for that task.")
+                return
+
+            # 3. Show plan
+            self.execution_manager.show_plan(steps)
+
+            # 4. Voice summary
+            self.speaker.speak(
+                f"I have a {len(steps)}-step plan to {goal.replace('_', ' ')}. "
+                "Please check the terminal and confirm."
+            )
+
+            # 5. Confirm
+            if not self.execution_manager.confirm():
+                self.speaker.speak("Execution cancelled.")
+                return
+
+            # 6. Execute
+            self.speaker.speak("Starting execution. This may take a few minutes.")
+            result = self.execution_manager.execute(steps)
+
+            if result['success']:
+                proj = result.get('project_path', '')
+                print(f"[DONE] Project ready: {proj}")
+                self.speaker.speak("Your project is ready and running.")
+            else:
+                err = result.get('error', 'Unknown error')
+                print(f"[FAIL] {err}")
+                self.speaker.speak(
+                    f"Execution stopped after {result['completed_steps']} steps. "
+                    "Check the terminal for details."
+                )
+
+        except Exception as exc:
+            logger.error(f"Developer task error: {exc}", exc_info=True)
+            print(f"[ERR] Developer task error: {exc}")
+            self.speaker.speak("Sorry, I encountered an error with the developer task.")
+
     def cleanup(self):
         """Cleanup resources"""
         print("\n" + "=" * 80)

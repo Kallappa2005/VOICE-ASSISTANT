@@ -369,8 +369,124 @@ class CodingMode:
             # new=2 → open in a new tab if the browser is already running
             webbrowser.open(url, new=2)
             logger.info(f"Browser opened: {url}")
-            return f"✅  Browser  →  {url}"
+            return f"OK  Browser opened: {url}"
         except Exception as exc:
-            msg = f"❌  Failed to open URL '{url}': {exc}"
+            msg = f"Failed to open URL '{url}': {exc}"
             logger.error(msg)
             return msg
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # Developer automation — delegate to agent ExecutionManager
+    # (Added to extend CodingMode without modifying existing methods)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def create_react_project(self, name=None, output_dir=None):
+        """
+        Scaffold a React (Vite) project via the agent ExecutionManager.
+
+        Shows the plan and asks for user confirmation before running anything.
+
+        Args:
+            name       (str | None): Project name. Auto-generated if None.
+            output_dir (str | None): Directory to create the project in.
+                                     Defaults to the user's home directory.
+
+        Returns:
+            dict: ExecutionManager result:
+                  {'success': bool, 'completed_steps': int,
+                   'total_steps': int, 'project_path': str | None,
+                   'error': str | None}
+        """
+        try:
+            # Lazy import — avoids circular dependency at module load time
+            from src.agent.task_planner import TaskPlanner
+            from src.agent.execution_manager import ExecutionManager
+
+            logger.info(f"CodingMode.create_react_project(name={name})")
+            intent = {
+                "type":      "developer_task",
+                "goal":      "create_react_project",
+                "name":      name,
+                "framework": None,
+                "raw_text":  f"create react project {name or ''}".strip(),
+            }
+            planner = TaskPlanner()
+            steps   = planner.plan(intent)
+            manager = ExecutionManager(planner=planner)
+
+            manager.show_plan(steps)
+            if manager.confirm():
+                return manager.execute(steps, project_dir=output_dir)
+
+            return {
+                "success":         False,
+                "error":           "Cancelled by user",
+                "completed_steps": 0,
+                "total_steps":     len(steps),
+                "project_path":    None,
+            }
+
+        except Exception as exc:
+            logger.error(f"create_react_project error: {exc}", exc_info=True)
+            return {
+                "success":         False,
+                "error":           str(exc),
+                "completed_steps": 0,
+                "total_steps":     0,
+                "project_path":    None,
+            }
+
+    def create_node_project(self, name=None, output_dir=None, packages=None):
+        """
+        Scaffold a Node.js / Express project via the agent ExecutionManager.
+
+        Shows the plan and asks for user confirmation before running anything.
+
+        Args:
+            name       (str | None):  Project name. Auto-generated if None.
+            output_dir (str | None):  Directory to create the project in.
+            packages   (list | None): npm packages to install.
+                                      Defaults to ['express'].
+
+        Returns:
+            dict: ExecutionManager result (same shape as create_react_project).
+        """
+        try:
+            from src.agent.task_planner import TaskPlanner
+            from src.agent.execution_manager import ExecutionManager
+
+            logger.info(
+                f"CodingMode.create_node_project(name={name}, packages={packages})"
+            )
+            intent = {
+                "type":      "developer_task",
+                "goal":      "create_node_project",
+                "name":      name,
+                "framework": "express",
+                "raw_text":  f"create node project {name or ''}".strip(),
+            }
+            planner = TaskPlanner()
+            steps   = planner.plan(intent)
+            manager = ExecutionManager(planner=planner)
+
+            manager.show_plan(steps)
+            if manager.confirm():
+                return manager.execute(steps, project_dir=output_dir)
+
+            return {
+                "success":         False,
+                "error":           "Cancelled by user",
+                "completed_steps": 0,
+                "total_steps":     len(steps),
+                "project_path":    None,
+            }
+
+        except Exception as exc:
+            logger.error(f"create_node_project error: {exc}", exc_info=True)
+            return {
+                "success":         False,
+                "error":           str(exc),
+                "completed_steps": 0,
+                "total_steps":     0,
+                "project_path":    None,
+            }
