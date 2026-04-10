@@ -1,0 +1,39 @@
+open youtube
+youtube search cat videos
+play video 2
+pause video
+resume video/play video
+stop video
+
+open new tab
+switch tab
+close tab
+previous tab
+last /go back tab
+close browser
+
+scroll down / move down /
+scroll to bottom/scroll bottom/go to bottom
+croll to up/scroll top/go to top
+
+take screenshot
+how many screenshots are present right now
+delete last screenshot
+delete all screenshots that i have 
+cofirm delete all 
+
+close browser
+exit
+
+
+##################AI POWERED FEATURES#################
+hey assistant', 'wake up', 'hello assistant'
+'sleep', 'go to sleep'
+goodbye/exit
+
+
+open wikipedia artificial intelligence
+analyze this page/summarize this page
+key points
+
+analyze code file

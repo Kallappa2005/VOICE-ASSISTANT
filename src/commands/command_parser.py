@@ -34,6 +34,7 @@ class CommandParser:
             'scroll to bottom', 'go to bottom', 'bottom of page', 'scroll bottom'
         ]
         
+        
         # Tab management keywords
         self.close_tab_keywords = [
             'close tab', 'close this tab', 'close current tab'
@@ -96,6 +97,13 @@ class CommandParser:
             'stop video', 'stop the video', 'stop playback'
         ]
         
+        # Ad-skip keywords — checked FIRST among video controls
+        self.skip_ad_keywords = [
+            'skip ad', 'skip the ad', 'skip advertisement',
+            'skip this ad', 'skip ads', 'bypass ad',
+            'close ad', 'dismiss ad',
+        ]
+        
         # ==================== AI KEYWORDS (UPDATED - BOTH SPELLINGS) ====================
         
         # Wake/Sleep keywords
@@ -147,6 +155,21 @@ class CommandParser:
             'check code', 'analyze code', 'review code',
             # British spelling
             'analyse clipboard', 'analyse code clipboard', 'analyse code',
+        ]
+        
+        # ==================== CODING MODE KEYWORDS ====================
+        
+        # Triggered when user says "start coding", "coding mode", etc.
+        # These are checked after AI commands but before YouTube/navigation.
+        self.start_coding_keywords = [
+            'start coding',
+            'coding mode',
+            'start coding mode',
+            'begin coding',
+            'launch project',
+            'open project',
+            'dev mode',
+            'development mode',
         ]
         
         logger.info("Command parser initialized")
@@ -236,6 +259,14 @@ class CommandParser:
                 logger.info("Analyze clipboard intent detected")
                 return {'intent': 'analyze_code_clipboard', 'params': None}
         
+        # ==================== CODING MODE ====================
+        
+        # Checked after AI commands, before YouTube/navigation
+        for keyword in self.start_coding_keywords:
+            if keyword in command:
+                logger.info("Start coding intent detected")
+                return {'intent': 'start_coding', 'params': None}
+        
         # ==================== YOUTUBE COMMANDS ====================
         
         # Check for YouTube search
@@ -258,6 +289,12 @@ class CommandParser:
         
         # ==================== VIDEO PLAYBACK CONTROL ====================
             
+        # Check for SKIP AD first (must be before pause/stop so 'skip' is unambiguous)
+        for keyword in self.skip_ad_keywords:
+            if keyword in command:
+                logger.info("Skip ad intent detected")
+                return {'intent': 'skip_ad', 'params': None}
+
         # Check for STOP VIDEO first (most specific)
         for keyword in self.stop_video_keywords:
             if keyword in command:

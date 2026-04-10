@@ -21,6 +21,7 @@ from src.browser.tab_manager import TabManager
 from src.automation.scroll_handler import ScrollHandler
 from src.automation.screenshot_handler import ScreenshotHandler
 from src.automation.youtube_controller import YouTubeController
+from src.automation.coding_mode import CodingMode
 from src.commands.command_parser import CommandParser
 from src.core.logger import setup_logger
 
@@ -43,6 +44,11 @@ class VoiceAssistant:
         self.stt = SpeechRecognitionHandler()
         print("   ✅ Speech module ready")
         
+        # Calibrate to room noise immediately after mic is ready
+        print("   ├── Calibrating to room noise...")
+        self.stt.calibrate(duration=2.0)
+        print("   ✅ Noise calibration complete")
+        
         # Initialize browser controller
         print("   ├── Browser Controller...")
         self.browser = BrowserController()
@@ -52,6 +58,11 @@ class VoiceAssistant:
         print("   ├── Command Parser...")
         self.parser = CommandParser()
         print("   ✅ Command parser ready")
+        
+        # Initialize Coding Mode (browser-independent — uses config.json)
+        print("   ├── Coding Mode...")
+        self.coding_mode = CodingMode()
+        print("   ✅ Coding Mode ready")
         
         # Browser-dependent handlers (initialized after browser opens)
         self.nav = None
@@ -132,6 +143,7 @@ class VoiceAssistant:
                 "'pause video' - Pause current video",
                 "'play video' / 'resume video' - Resume playback",
                 "'stop video' - Stop and reset video",
+                "'skip ad' - Skip the current YouTube ad (once skip button appears)",
             ],
             "📜 Scrolling": [
                 "'scroll down' / 'scroll up' - Scroll page",
@@ -152,6 +164,18 @@ class VoiceAssistant:
             "⚙️ System": [
                 "'help' - Show this menu",
                 "'exit' / 'goodbye' - Quit assistant",
+            ],
+            "💻 Coding Mode": [
+                "'start coding'  - Launch full dev environment from config.json",
+                "'coding mode'   - Same as above",
+                "'begin coding'  - Same as above",
+                "'launch project'- Open project in VS Code + terminal + browser",
+                "  (edit config.json in project root to change settings)",
+            ],
+            "🔊 Noisy Room Tips": [
+                "Speak clearly and slightly louder than normal",
+                "Assistant retries 3× if it mishears — wait for the retry prompt",
+                "Move closer to the microphone if possible",
             ]
         }
         
@@ -307,6 +331,9 @@ class VoiceAssistant:
             elif intent == 'stop_video':
                 self._handle_stop_video()
             
+            elif intent == 'skip_ad':
+                self._handle_skip_ad()
+            
             elif intent == 'scroll_down':
                 self._handle_scroll_down(params)
             
@@ -348,6 +375,9 @@ class VoiceAssistant:
             
             elif intent == 'close_browser':
                 self._handle_close_browser()
+            
+            elif intent == 'start_coding':
+                self._handle_start_coding()
             
             elif intent == 'unknown':
                 print("❌ Command not recognized")
@@ -507,6 +537,88 @@ class VoiceAssistant:
         else:
             print("❌ Failed to stop")
             self.tts.speak("Failed to stop video")
+    
+    def _handle_skip_ad(self):
+        """Handle skip YouTube ad"""
+        print("\n⏭️ Checking for ads...")
+        
+        # First, make sure we are on a video page at all
+        if not self.youtube.is_on_video_page():
+            print("❌ Not on a YouTube video page")
+            self.tts.speak("You are not on a YouTube video page")
+            return
+        
+        # Check if an ad is actually showing
+        if not self.youtube.is_ad_playing():
+            print("ℹ️ No ad is currently playing")
+            self.tts.speak("No ad is currently playing")
+            return
+        
+        print("📢 Ad detected! Waiting for skip button (up to 30 seconds)...")
+        self.tts.speak("Ad detected. Waiting for the skip button.")
+        
+        result = self.youtube.skip_ad(wait_seconds=30)
+        
+        if result == 'skipped':
+            print("✅ Ad skipped!")
+            self.tts.speak("Ad skipped. Enjoy your video!")
+        
+        elif result == 'no_ad':
+            print("ℹ️ Ad ended on its own before skip button appeared")
+            self.tts.speak("Looks like the ad already finished")
+        
+        elif result == 'not_yet':
+            print("⚠️ Ad is playing but skip button did not appear")
+            self.tts.speak(
+                "This ad cannot be skipped. It will end automatically, "
+                "please wait a moment."
+            )
+        
+        else:  # 'error'
+            print("❌ Error while trying to skip ad")
+            self.tts.speak("Sorry, something went wrong while trying to skip the ad.")
+    
+    def _handle_start_coding(self):
+        """Handle 'start coding' voice command — launches the full dev environment."""
+        print("\n💻 Starting Coding Mode...")
+        self.tts.speak(
+            "Starting coding mode. Opening Visual Studio Code, terminal, "
+            "and your browser links. Please wait."
+        )
+        
+        result = self.coding_mode.start_coding_mode()
+        
+        if result['success']:
+            # Count successful steps
+            ok  = sum(1 for s in result['steps'] if s.startswith('✅'))
+            total = len(result['steps'])
+            
+            print(f"\n✅ Coding Mode launched ({ok}/{total} steps succeeded)")
+            self.tts.speak(
+                f"Coding mode is ready. "
+                f"Visual Studio Code, terminal, and browser tabs have been opened."
+            )
+        else:
+            err = result.get('error', 'Unknown error')
+            print(f"\n❌ Coding Mode failed: {err}")
+            # Summarise the error for voice (keep it short)
+            if 'config.json not found' in err:
+                self.tts.speak(
+                    "Could not start coding mode. "
+                    "The config dot json file was not found. "
+                    "Please create it at the project root."
+                )
+            elif 'Invalid JSON' in err:
+                self.tts.speak(
+                    "Could not start coding mode. "
+                    "The config dot json file contains invalid JSON. "
+                    "Please fix it and try again."
+                )
+            else:
+                self.tts.speak(
+                    "Could not start coding mode due to a configuration error. "
+                    "Please check the terminal for details."
+                )
     
     def _handle_scroll_down(self, params):
         """Handle scroll down"""

@@ -554,6 +554,129 @@ class YouTubeController:
             logger.error(f"Error checking video page: {e}")
             return False
     
+    def is_ad_playing(self):
+        """
+        Check whether a YouTube ad is currently playing.
+
+        YouTube injects a specific CSS class on the player wrapper when an ad
+        is active. We also fall back to checking for the ad-overlay element so
+        the detection works across different YouTube UI versions.
+
+        Returns:
+            bool: True if an ad is currently playing, False otherwise
+        """
+        try:
+            driver = self.browser.get_driver()
+            if not driver:
+                return False
+
+            # Primary check: YouTube adds 'ad-showing' to the player container
+            # when any ad (skippable or non-skippable) is active.
+            is_ad = driver.execute_script(
+                "return document.querySelector('.html5-video-player')"
+                "?.classList.contains('ad-showing') ?? false;"
+            )
+            if is_ad:
+                logger.info("Ad detected via 'ad-showing' class")
+                return True
+
+            # Fallback: look for the ad overlay element being visible
+            fallback_selectors = [
+                ".ytp-ad-player-overlay-instream-info",  # "Ad · X of Y"
+                ".ytp-ad-player-overlay",                # generic ad overlay
+                ".ytp-ad-module",                         # ad module wrapper
+            ]
+            for selector in fallback_selectors:
+                elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                if elements and any(el.is_displayed() for el in elements):
+                    logger.info(f"Ad detected via fallback selector: {selector}")
+                    return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Error checking ad status: {e}")
+            return False
+
+    def skip_ad(self, wait_seconds=30):
+        """
+        Wait for the YouTube 'Skip Ad' button to appear, then click it.
+
+        YouTube shows the skip button after the mandatory ~5-second window.
+        This method polls for up to `wait_seconds` so the user doesn't have
+        to time their voice command perfectly.
+
+        Args:
+            wait_seconds (int): Maximum seconds to wait for the skip button.
+
+        Returns:
+            str: One of:
+                 'skipped'      — ad was skipped successfully
+                 'no_ad'        — no ad was detected in the first place
+                 'not_yet'      — ad is playing but skip button never appeared
+                 'error'        — unexpected exception
+        """
+        try:
+            driver = self.browser.get_driver()
+            if not driver:
+                logger.error("Browser not open")
+                return 'error'
+
+            # If no ad is active at all, nothing to do
+            if not self.is_ad_playing():
+                logger.info("No ad detected — skip_ad() returning 'no_ad'")
+                return 'no_ad'
+
+            logger.info(f"Ad detected. Waiting up to {wait_seconds}s for skip button...")
+
+            # YouTube uses several skip-button selectors across UI versions
+            # List them from most-specific to least-specific
+            skip_selectors = [
+                ".ytp-skip-ad-button",           # classic skip button
+                ".ytp-ad-skip-button",           # alternate class name
+                ".ytp-ad-skip-button-modern",    # newer redesigned UI
+                "button.ytp-skip-ad-button",     # button element explicitly
+            ]
+
+            import time as _time
+            deadline = _time.time() + wait_seconds
+            poll_interval = 0.5          # check every 500ms
+
+            while _time.time() < deadline:
+                for selector in skip_selectors:
+                    try:
+                        elements = driver.find_elements(By.CSS_SELECTOR, selector)
+                        for el in elements:
+                            if el.is_displayed() and el.is_enabled():
+                                logger.info(
+                                    f"Skip button found ({selector}), clicking..."
+                                )
+                                # Scroll into view just in case
+                                driver.execute_script(
+                                    "arguments[0].scrollIntoView();", el
+                                )
+                                # Prefer JS click — more reliable on overlays
+                                driver.execute_script("arguments[0].click();", el)
+                                _time.sleep(0.8)
+                                logger.info("Ad skipped successfully")
+                                return 'skipped'
+                    except Exception:
+                        continue  # this selector failed, try next
+
+                _time.sleep(poll_interval)
+
+            # Timed out — ad played but skip button never appeared
+            # (non-skippable short ad, e.g. 15-second bumper)
+            logger.warning(
+                "Skip button did not appear within the wait window "
+                "(ad may be non-skippable)"
+            )
+            return 'not_yet'
+
+        except Exception as e:
+            logger.error(f"Error in skip_ad: {e}")
+            return 'error'
+
     def get_current_video_title(self):
         """
         Get title of currently playing video
