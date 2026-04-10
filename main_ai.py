@@ -1,11 +1,15 @@
 """
 Voice Assistant with AI Features
 Main entry point for AI-powered voice assistant
+Implements strict linear pipeline: Voice → Text → Intent → Plan → Execute → UI + Voice Output
 """
 
 import sys
 import os
 import time
+import tkinter as tk
+from threading import Thread
+from pathlib import Path
 
 # Add src to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -20,6 +24,12 @@ from src.core.logger import setup_logger
 # AI imports
 from src.ai.voice_output import VoiceOutput
 from src.ai.ai_commands import AICommandHandler
+
+# NEW: Pipeline components
+from src.voice.voice import VoiceInput
+from src.assistant import Assistant
+from src.ui.simple_ui import UIHandler
+from src.ui.frontend_gui import FrontendGUI  # NEW: Visual Frontend
 
 logger = setup_logger(__name__)
 
@@ -60,6 +70,20 @@ class AIVoiceAssistant:
         self.is_awake  = False
         self.running   = False
 
+        # ── NEW: Pipeline Components ──────────────────────────────────────────
+        print("   ├── Voice Input Handler...")
+        self.voice_input = VoiceInput()
+        print("   ✅ Voice input ready")
+        
+        print("   ├── UI Handler (Console)...")
+        self.ui_handler = UIHandler()
+        print("   ✅ Console UI handler ready")
+
+        print("   ├── Frontend GUI (Visual)...")
+        self.gui_root = tk.Tk()
+        self.frontend_gui = FrontendGUI(root=self.gui_root)
+        print("   ✅ Visual frontend ready")
+
         # ── Agent system (developer automation) ───────────────────────────────
         print("   |-- Agent System...")
         try:
@@ -70,11 +94,20 @@ class AIVoiceAssistant:
             self.task_planner      = TaskPlanner()
             self.execution_manager = ExecutionManager(tts=self.tts)
             print("   [OK] Agent system ready")
+            
+            # NEW: Create Assistant orchestrator - Pass FRONTEND GUI as callback
+            # Frontend GUI will receive all real-time updates
+            self.assistant = Assistant(
+                tts=self.tts,
+                ui_callback=self.frontend_gui.update_ui,  # ← Visual updates!
+            )
+            print("   [OK] Assistant pipeline ready")
         except Exception as _agent_exc:
             logger.warning(f"Agent system unavailable: {_agent_exc}")
             self.intent_enhancer   = None
             self.task_planner      = None
             self.execution_manager = None
+            self.assistant         = None
         
         print("\n✅ AI Voice Assistant initialized successfully!")
         logger.info("AI Voice Assistant initialized")
@@ -175,8 +208,16 @@ class AIVoiceAssistant:
         
         while self.running:
             try:
-                # Listen for command
-                command = self.stt.listen()
+                # ─── GUI UPDATE: Keep window responsive ──────────────────────
+                try:
+                    if self.gui_root and self.is_awake:
+                        self.gui_root.update()
+                except:
+                    pass
+                
+                # ─── STEP 1: Voice Input ─────────────────────────────────────
+                # Use new VoiceInput handler instead of self.stt.listen()
+                command = self.voice_input.listen()
                 
                 if not command:
                     continue
@@ -184,23 +225,28 @@ class AIVoiceAssistant:
                 print(f"\n[You said]: '{command}'")
                 logger.info(f"User command: {command}")
 
-                # ── Developer task? Route to agent pipeline ───────────────────
-                if (self.is_awake
-                        and self.intent_enhancer
-                        and self.intent_enhancer.is_developer_task(command)):
-                    self._handle_developer_task_agent(command)
-                    command_count += 1
-                    continue
+                # ─── STEP 2: Check if developer task ──────────────────────────
+                if self.is_awake and self.assistant:
+                    if self.assistant.is_developer_task(command):
+                        # ─── STEP 3-7: Developer task flow (from assistant.py) ──
+                        result = self.assistant.handle_developer_task(command)
+                        command_count += 1
+                        
+                        # Sleep mode: wait before returning to listening
+                        if result['success']:
+                            time.sleep(8)
+                        
+                        continue
 
-                # ── Normal command flow ───────────────────────────────────────
-                # Parse command
+                # ─── STEP 5: Non-developer commands (existing flow) ───────────
+                # Pass to existing CommandParser and handlers
                 parsed = self.parser.parse(command, context=None)
                 intent = parsed['intent']
                 params = parsed['params']
                 
                 print(f"🔍 Detected intent: {intent}")
                 
-                # Handle command
+                # Handle command (existing code)
                 self.running = self.handle_command(intent, params)
                 command_count += 1
                 
@@ -237,6 +283,10 @@ class AIVoiceAssistant:
                     self.is_awake = True
                     print("\n🤖 Assistant: Hello! I'm ready. How can I help you?\n")
                     self.speaker.speak_greeting()
+                    
+                    # ─── NEW: Show Frontend GUI after wake-up ──────────────────
+                    self._show_frontend_gui()
+                    
                 return True
             
             # Must be awake for other commands
@@ -401,6 +451,95 @@ class AIVoiceAssistant:
             print(f"[ERR] Developer task error: {exc}")
             self.speaker.speak("Sorry, I encountered an error with the developer task.")
 
+    # ─────────────────────────────────────────────────────────────────────────
+    # NEW: Frontend GUI Management
+    # ─────────────────────────────────────────────────────────────────────────
+
+    def _show_frontend_gui(self):
+        """Display frontend GUI (shows window, doesn't block)"""
+        try:
+            self.frontend_gui.show()
+            self.gui_root.update()  # Update GUI once
+            logger.info("Frontend GUI displayed")
+        except Exception as e:
+            logger.error(f"GUI display error: {e}")
+
+    def _update_gui_for_developer_task(self, enhanced: dict):
+        """Update GUI with developer task information"""
+        proj_name = enhanced.get("name", "my-app")
+        goal = enhanced.get("goal", "unknown")
+        framework = "React + Vite" if "react" in goal.lower() else "Node.js"
+        
+        location = str(Path.home() / "Desktop" / "Hackathon")
+        
+        self.frontend_gui.set_project_info(
+            project_name=proj_name,
+            framework=framework,
+            location=location
+        )
+        
+        # Default checklist
+        checklist = [
+            "✓ Check Node.js installation",
+            "✓ Create project with Vite",
+            "✓ Install dependencies",
+            "✓ Start development server",
+            "✓ Open project in browser",
+        ]
+        self.frontend_gui.set_checklist(checklist)
+        self.frontend_gui.log_console(f"📋 Project setup plan ready", "info")
+
+    def handle_checklist_command(self, command: str):
+        """
+        Handle voice commands for checklist modification
+        
+        Examples:
+            "add install typescript"
+            "remove start development server"
+            "edit create project"
+        """
+        command_lower = command.lower().strip()
+        
+        # Add item
+        if command_lower.startswith("add "):
+            item = command_lower.replace("add ", "").strip()
+            self.frontend_gui.checklist_items.append(f"✓ {item}")
+            self.frontend_gui.set_checklist(self.frontend_gui.checklist_items)
+            self.frontend_gui.log_console(f"✓ Added: {item}", "success")
+            self.speaker.speak(f"Added {item} to checklist")
+            return True
+        
+        # Remove item
+        elif command_lower.startswith("remove "):
+            item_text = command_lower.replace("remove ", "").strip()
+            # Find and remove matching item
+            for i, item in enumerate(self.frontend_gui.checklist_items):
+                if item_text.lower() in item.lower():
+                    removed = self.frontend_gui.checklist_items.pop(i)
+                    self.frontend_gui.set_checklist(self.frontend_gui.checklist_items)
+                    self.frontend_gui.log_console(f"✗ Removed: {removed}", "warning")
+                    self.speaker.speak(f"Removed {item_text}")
+                    return True
+            self.speaker.speak(f"Could not find {item_text} in checklist")
+            return False
+        
+        # Clear all
+        elif "clear" in command_lower:
+            self.frontend_gui.set_checklist([])
+            self.frontend_gui.log_console("Checklist cleared", "warning")
+            self.speaker.speak("Checklist cleared")
+            return True
+        
+        # Show checklist
+        elif "show" in command_lower or "list" in command_lower:
+            self.frontend_gui.log_console("Current checklist:", "info")
+            for item in self.frontend_gui.checklist_items:
+                self.frontend_gui.log_console(f"  {item}", "info")
+            self.speaker.speak("Checklist displayed on screen")
+            return True
+        
+        return False
+
     def cleanup(self):
         """Cleanup resources"""
         print("\n" + "=" * 80)
@@ -408,6 +547,13 @@ class AIVoiceAssistant:
         print("=" * 80)
         
         try:
+            print("   ├── Closing GUI...")
+            if hasattr(self, 'frontend_gui') and self.frontend_gui:
+                self.frontend_gui.close()
+            if hasattr(self, 'gui_root') and self.gui_root:
+                self.gui_root.quit()
+            print("   ✅ GUI closed")
+            
             if self.browser and self.browser.is_open():
                 print("   ├── Closing browser...")
                 self.browser.close_browser()
