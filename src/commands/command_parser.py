@@ -188,6 +188,68 @@ class CommandParser:
             'start study session',
         ]
 
+        # ==================== PROJECT SETUP KEYWORDS ====================
+
+        # React starter project setup
+        self.react_project_setup_keywords = [
+            'set up react project',
+            'setup react project',
+            'create react project',
+            'build react project',
+            'make react project',
+            'set up react app',
+            'setup react app',
+            'create react app',
+            'build react app',
+        ]
+
+        # Flask starter project setup
+        self.flask_project_setup_keywords = [
+            'set up flask project',
+            'setup flask project',
+            'create flask project',
+            'build flask project',
+            'make flask project',
+            'set up flask app',
+            'setup flask app',
+            'create flask app',
+            'build flask app',
+        ]
+
+        # Common STT mishears for "flask" in setup commands.
+        # Example: "set up last project" should still map to Flask setup.
+        self.flask_project_setup_misheard_keywords = [
+            'set up last project',
+            'setup last project',
+            'create last project',
+            'build last project',
+            'make last project',
+            'open last project',
+            'set up class project',
+            'setup class project',
+            'create class project',
+            'build class project',
+            'make class project',
+            'open class project',
+            'set up flusk project',
+            'setup flusk project',
+            'create flusk project',
+            'build flusk project',
+            'make flusk project',
+            'open flusk project',
+            'open flask project',
+            'set up last app',
+            'setup last app',
+            'open last app',
+            'set up class app',
+            'setup class app',
+            'open class app',
+            'set up flusk app',
+            'setup flusk app',
+            'open flusk app',
+            'open flask app',
+        ]
+
     
     def parse(self, command, context=None):
         """
@@ -302,6 +364,63 @@ class CommandParser:
                 else:
                     logger.info("Start study intent detected (no topic)")
                     return {'intent': 'start_study', 'params': None}
+
+        # ==================== PROJECT SETUP ====================
+
+        # React project setup
+        for keyword in self.react_project_setup_keywords:
+            if keyword in command:
+                remainder = command.split(keyword, 1)[1].strip()
+                logger.info(f"React project setup intent detected: {remainder}")
+                return {
+                    'intent': 'setup_project',
+                    'params': {
+                        'project_type': 'react',
+                        'project_name': remainder or None,
+                    }
+                }
+
+        # Flask project setup
+        for keyword in self.flask_project_setup_keywords:
+            if keyword in command:
+                remainder = command.split(keyword, 1)[1].strip()
+                logger.info(f"Flask project setup intent detected: {remainder}")
+                return {
+                    'intent': 'setup_project',
+                    'params': {
+                        'project_type': 'flask',
+                        'project_name': remainder or None,
+                    }
+                }
+
+        # Flask project setup (speech-misheard variations)
+        for keyword in self.flask_project_setup_misheard_keywords:
+            if keyword in command:
+                remainder = command.split(keyword, 1)[1].strip()
+                logger.info(f"Flask project setup intent detected (misheard phrase): {remainder}")
+                return {
+                    'intent': 'setup_project',
+                    'params': {
+                        'project_type': 'flask',
+                        'project_name': remainder or None,
+                    }
+                }
+
+        # Extra tolerant fallback for phrases like:
+        # "set up last project", "setup class app", "create flusk project"
+        setup_verbs = ['set up', 'setup', 'create', 'build', 'make', 'open']
+        flask_aliases = ['flask', 'flusk', 'last', 'class']
+        setup_targets = ['project', 'app']
+        if any(verb in command for verb in setup_verbs) and any(alias in command for alias in flask_aliases):
+            if any(target in command for target in setup_targets):
+                logger.info("Flask project setup intent detected (tolerant fallback)")
+                return {
+                    'intent': 'setup_project',
+                    'params': {
+                        'project_type': 'flask',
+                        'project_name': None,
+                    }
+                }
         
         # ==================== YOUTUBE COMMANDS ====================
         

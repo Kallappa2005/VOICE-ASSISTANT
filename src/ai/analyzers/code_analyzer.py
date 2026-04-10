@@ -7,6 +7,7 @@ import re
 from radon.complexity import cc_visit
 from radon.metrics import mi_visit
 from src.ai.utils.gemini_client import GeminiClient
+from src.ai.utils.ai_router import ask_ai
 from src.ai.ai_config import config
 from src.core.logger import setup_logger
 
@@ -271,7 +272,8 @@ Provide:
         
         logger.info(f"Getting AI analysis ({analysis_type})...")
         
-        return self.client.generate_text(prompt, max_tokens=3000)
+        task_type = 'security' if analysis_type in ['security', 'full'] else 'analysis'
+        return ask_ai(prompt, task_type=task_type)
     
     def find_bugs(self, code, language='python'):
         """
@@ -307,7 +309,7 @@ For each issue:
 
             logger.info("Analyzing code for bugs...")
             
-            analysis = self.client.generate_text(prompt, max_tokens=2000)
+            analysis = ask_ai(prompt, task_type='analysis')
             
             return {
                 'success': True,
@@ -352,7 +354,7 @@ For each suggestion, show before/after code if applicable."""
 
             logger.info("Generating improvement suggestions...")
             
-            suggestions = self.client.generate_text(prompt, max_tokens=2500)
+            suggestions = ask_ai(prompt, task_type='analysis')
             
             return {
                 'success': True,

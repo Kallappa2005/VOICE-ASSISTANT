@@ -35,7 +35,7 @@ class AIVoiceAssistant:
         
         # Core components
         print("   ├── Speech Recognition...")
-        self.tts = TextToSpeechHandler(rate=160)
+        self.tts = TextToSpeechHandler(rate=210)
         self.stt = SpeechRecognitionHandler()
         print("   ✅ Speech module ready")
         
@@ -49,7 +49,7 @@ class AIVoiceAssistant:
         
         # AI components
         print("   ├── AI Voice Output...")
-        self.speaker = VoiceOutput()
+        self.speaker = VoiceOutput(rate=210)
         print("   ✅ AI voice output ready")
         
         # Browser-dependent handlers

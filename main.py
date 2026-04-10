@@ -9,6 +9,7 @@ Run: python main.py
 import sys
 import os
 import time
+import webbrowser
 
 # Add src to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -23,6 +24,7 @@ from src.automation.screenshot_handler import ScreenshotHandler
 from src.automation.youtube_controller import YouTubeController
 from src.automation.coding_mode import CodingMode
 from src.automation.study_mode import StudyMode
+from src.automation.project_setup import ProjectSetup
 from src.commands.command_parser import CommandParser
 from src.core.logger import setup_logger
 
@@ -41,7 +43,7 @@ class VoiceAssistant:
         
         # Initialize speech handlers
         print("   ├── Speech Recognition...")
-        self.tts = TextToSpeechHandler(rate=160)
+        self.tts = TextToSpeechHandler(rate=210)
         self.stt = SpeechRecognitionHandler()
         print("   ✅ Speech module ready")
         
@@ -69,6 +71,11 @@ class VoiceAssistant:
         print("   ├── Study Mode...")
         self.study_mode = StudyMode()
         print("   ✅ Study Mode ready")
+
+        # Initialize Project Setup (browser-independent — uses config.json)
+        print("   ├── Project Setup...")
+        self.project_setup = ProjectSetup()
+        print("   ✅ Project Setup ready")
         
         # Browser-dependent handlers (initialized after browser opens)
         self.nav = None
@@ -178,7 +185,13 @@ class VoiceAssistant:
                 "'launch project'- Open project in VS Code + terminal + browser",
                 "  (edit config.json in project root to change settings)",
             ],
-            "� Study Mode": [
+            "🛠️ Project Setup": [
+                "'set up react project'  - Create React + Express starter project",
+                "'set up flask project'  - Create React + Flask starter project",
+                "  Voice assistant will ask for the main folder name first",
+                "  Base Desktop folder is read from config.json",
+            ],
+            "📚 Study Mode": [
                 "'study mode' [topic]        - Launch study environment",
                 "'start studying' [topic]    - Same as above",
                 "'focus mode' [topic]        - Same as above",
@@ -186,7 +199,7 @@ class VoiceAssistant:
                 "  Example: 'study mode React hooks', 'start studying Python'",
                 "  (edit config.json to customize YouTube, docs, and note app)",
             ],
-            "�🔊 Noisy Room Tips": [
+            "🔊 Noisy Room Tips": [
                 "Speak clearly and slightly louder than normal",
                 "Assistant retries 3× if it mishears — wait for the retry prompt",
                 "Move closer to the microphone if possible",
@@ -392,6 +405,9 @@ class VoiceAssistant:
             
             elif intent == 'start_coding':
                 self._handle_start_coding()
+
+            elif intent == 'setup_project':
+                self._handle_setup_project(params)
             
             elif intent == 'start_study':
                 params = parsed.get('params', {})
@@ -595,6 +611,62 @@ class VoiceAssistant:
         else:  # 'error'
             print("❌ Error while trying to skip ad")
             self.tts.speak("Sorry, something went wrong while trying to skip the ad.")
+
+    def _handle_setup_project(self, params):
+        """Handle project setup commands for React and Flask starter projects."""
+        params = params or {}
+        project_type = params.get('project_type', 'react').strip().lower()
+
+        print(f"\n🛠️ Starting {project_type.title()} project setup...")
+        self.tts.speak(
+            f"Starting {project_type} project setup. What folder name should I use for the main project folder?"
+        )
+
+        folder_name = self.stt.listen()
+        if not folder_name:
+            fallback_name = params.get('project_name')
+            if fallback_name:
+                folder_name = fallback_name
+
+        if not folder_name:
+            print("❌ No folder name provided")
+            self.tts.speak("I could not hear the folder name. Please try again.")
+            return
+
+        folder_name = folder_name.strip()
+        print(f"📁 Folder name: {folder_name}")
+        self.tts.speak(f"Setting up the project inside the folder named {folder_name}. Please wait.")
+
+        result = self.project_setup.setup_project(project_type, folder_name)
+
+        if result['success']:
+            ok = sum(1 for s in result['steps'] if s.startswith('✅'))
+            total = len(result['steps'])
+            urls = result.get('urls', {})
+
+            print(f"\n✅ {project_type.title()} project launched ({ok}/{total} steps succeeded)")
+            print(f"📂 Project path: {result.get('project_path')}")
+
+            if urls.get('backend'):
+                if self.nav:
+                    self.nav.goto_url(urls['backend'], new_tab=True)
+                else:
+                    webbrowser.open(urls['backend'], new=2)
+
+            if urls.get('frontend'):
+                time.sleep(1)
+                if self.nav:
+                    self.nav.goto_url(urls['frontend'], new_tab=True)
+                else:
+                    webbrowser.open(urls['frontend'], new=2)
+
+            self.tts.speak(
+                f"{project_type.title()} project setup is complete. I opened the frontend and backend in the browser."
+            )
+        else:
+            err = result.get('error', 'Unknown error')
+            print(f"\n❌ Project setup failed: {err}")
+            self.tts.speak(f"Project setup failed. {err}")
     
     def _handle_start_study(self, params):
         """Handle 'study mode' voice command — launches focused study environment."""

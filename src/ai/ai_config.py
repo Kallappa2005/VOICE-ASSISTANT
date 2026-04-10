@@ -34,6 +34,11 @@ class AIConfig:
     # Rate Limits (Gemini Free Tier)
     REQUESTS_PER_MINUTE = int(os.getenv('REQUESTS_PER_MINUTE', 15))
     MONTHLY_TOKEN_LIMIT = int(os.getenv('MONTHLY_TOKEN_LIMIT', 1000000))
+
+    # ==================== OLLAMA FALLBACK SETTINGS ====================
+    OLLAMA_URL = os.getenv('OLLAMA_URL', 'http://localhost:11434/api/generate')
+    OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', 'phi3')
+    OLLAMA_TIMEOUT_SECONDS = int(os.getenv('OLLAMA_TIMEOUT_SECONDS', 300))
     
     @classmethod
     def is_configured(cls):
@@ -65,7 +70,9 @@ class AIConfig:
             'webpage_analysis': cls.ENABLE_WEBPAGE_ANALYSIS,
             'code_analysis': cls.ENABLE_CODE_ANALYSIS,
             'api_provider': 'Google Gemini (FREE)',
-            'rate_limit': f'{cls.REQUESTS_PER_MINUTE} req/min'
+            'rate_limit': f'{cls.REQUESTS_PER_MINUTE} req/min',
+            'ollama_model': cls.OLLAMA_MODEL,
+            'ollama_timeout_seconds': cls.OLLAMA_TIMEOUT_SECONDS,
         }
 
 # Global config instance
