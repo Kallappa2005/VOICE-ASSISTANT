@@ -15,6 +15,8 @@ class AIConfig:
     
     # ==================== GEMINI SETTINGS (FREE) ====================
     GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+    GEMINI_API_KEY_BACKUP1 = os.getenv('GEMINI_API_KEY_BACKUP1', '')
+    GEMINI_API_KEY_BACKUP2 = os.getenv('GEMINI_API_KEY_BACKUP2', '')
     GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-1.5-flash')
     
     # Generation Settings
@@ -43,7 +45,38 @@ class AIConfig:
     @classmethod
     def is_configured(cls):
         """Check if AI is properly configured"""
-        return bool(cls.GEMINI_API_KEY and cls.GEMINI_API_KEY.startswith('AIza'))
+        return len(cls.get_gemini_api_keys()) > 0
+
+    @classmethod
+    def get_gemini_api_keys(cls):
+        """
+        Return ordered Gemini API keys for failover.
+
+        Priority:
+            1) GEMINI_API_KEY
+            2) GEMINI_API_KEY_BACKUP1
+            3) GEMINI_API_KEY_BACKUP2
+        """
+        keys = [
+            cls.GEMINI_API_KEY,
+            cls.GEMINI_API_KEY_BACKUP1,
+            cls.GEMINI_API_KEY_BACKUP2,
+        ]
+
+        valid_keys = []
+        seen = set()
+        for key in keys:
+            normalized = (key or '').strip()
+            if not normalized:
+                continue
+            if not normalized.startswith('AIza'):
+                continue
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            valid_keys.append(normalized)
+
+        return valid_keys
     
     @classmethod
     def validate(cls):
@@ -66,6 +99,7 @@ class AIConfig:
         return {
             'configured': cls.is_configured(),
             'model': cls.GEMINI_MODEL,
+            'gemini_keys_configured': len(cls.get_gemini_api_keys()),
             'max_tokens': cls.MAX_OUTPUT_TOKENS,
             'webpage_analysis': cls.ENABLE_WEBPAGE_ANALYSIS,
             'code_analysis': cls.ENABLE_CODE_ANALYSIS,

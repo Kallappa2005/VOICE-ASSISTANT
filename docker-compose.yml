@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  # AI Voice Assistant - Headless (Production)
+  voice-assistant-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voice-assistant-ai
+    environment:
+      ASSISTANT_MODE: ai
+      DOCKER_CONTAINER: "true"
+      DEBUG: "false"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+    networks:
+      - voice-net
+
+  # Basic Voice Assistant - Headless
+  voice-assistant-basic:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: voice-assistant-basic
+    environment:
+      ASSISTANT_MODE: basic
+      DOCKER_CONTAINER: "true"
+      DEBUG: "false"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    ports:
+      - "8081:8081"
+    restart: unless-stopped
+    networks:
+      - voice-net
+    profiles:
+      - basic
+
+volumes:
+  data:
+  logs:
+
+networks:
+  voice-net:
+    driver: bridge

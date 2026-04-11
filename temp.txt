@@ -44,3 +44,7 @@ study mode python
 set up React project
 set up flask project
 
+gui ##########
+python launcher.py --mode ai              # AI with GUI
+python launcher.py --mode basic           # Basic with GUI
+python launcher.py --mode ai --no-gui

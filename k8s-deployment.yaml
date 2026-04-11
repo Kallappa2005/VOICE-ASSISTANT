@@ -1,0 +1,237 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voice-assistant-ai
+  namespace: default
+  labels:
+    app: voice-assistant
+    mode: ai
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: voice-assistant
+      mode: ai
+  template:
+    metadata:
+      labels:
+        app: voice-assistant
+        mode: ai
+    spec:
+      # Security context
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+      
+      containers:
+      - name: voice-assistant-ai
+        image: voice-assistant:latest
+        imagePullPolicy: IfNotPresent
+        
+        # Environment variables
+        env:
+        - name: ASSISTANT_MODE
+          value: "ai"
+        - name: DOCKER_CONTAINER
+          value: "true"
+        - name: DEBUG
+          value: "false"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        
+        # Resource limits
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        
+        # Health checks
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 10
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 2
+        
+        # Volume mounts
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        - name: logs
+          mountPath: /app/logs
+        
+        # Security context for container
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+      
+      # Volumes
+      volumes:
+      - name: data
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}
+      
+      # Restart policy
+      restartPolicy: Always
+      
+      # Pod disruption budget
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: voice-assistant-basic
+  namespace: default
+  labels:
+    app: voice-assistant
+    mode: basic
+    version: v1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: voice-assistant
+      mode: basic
+  template:
+    metadata:
+      labels:
+        app: voice-assistant
+        mode: basic
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsNonRoot: true
+        fsGroup: 1000
+      
+      containers:
+      - name: voice-assistant-basic
+        image: voice-assistant:latest
+        imagePullPolicy: IfNotPresent
+        
+        env:
+        - name: ASSISTANT_MODE
+          value: "basic"
+        - name: DOCKER_CONTAINER
+          value: "true"
+        - name: DEBUG
+          value: "false"
+        
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import sys; sys.exit(0)"
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        - name: logs
+          mountPath: /app/logs
+        
+        securityContext:
+          allowPrivilegeEscalation: false
+      
+      volumes:
+      - name: data
+        emptyDir: {}
+      - name: logs
+        emptyDir: {}
+      
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: voice-assistant-config
+  namespace: default
+spec:
+  config.yaml: |
+    # Voice Assistant Configuration
+    # Loaded by config.py
+    
+    assistant:
+      mode: ai
+      debug: false
+    
+    speech:
+      tts_rate: 210
+      recognition_timeout: 30
+    
+    ai:
+      model: gemini-1.5-flash
+      timeout: 30
+    
+    docker:
+      enabled: true
+      healthcheck_interval: 30
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: voice-assistant-service
+  namespace: default
+  labels:
+    app: voice-assistant
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8080
+    targetPort: 8080
+    protocol: TCP
+    name: http
+  selector:
+    app: voice-assistant

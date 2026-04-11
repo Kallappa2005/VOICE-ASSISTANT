@@ -41,27 +41,36 @@ def ask_gemini(prompt: str) -> str:
         logger.warning("ask_gemini received empty prompt")
         return ""
 
-    def _call_gemini() -> str:
-        client = GeminiClient()
-        return client.generate_text(prompt)
-
-    try:
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(_call_gemini)
-            response = future.result(timeout=_DEFAULT_TIMEOUT)
-
-        if not response or not str(response).strip():
-            logger.warning("Gemini returned an empty response")
-            return ""
-
-        return str(response).strip()
-
-    except FutureTimeoutError:
-        logger.error("Gemini request timed out")
+    gemini_keys = config.get_gemini_api_keys()
+    if not gemini_keys:
+        logger.warning("No valid Gemini API keys configured")
         return ""
-    except Exception as exc:
-        logger.error(f"Gemini request failed: {exc}")
-        return ""
+
+    for idx, api_key in enumerate(gemini_keys, start=1):
+        def _call_gemini_with_key(current_key=api_key) -> str:
+            client = GeminiClient(api_key=current_key)
+            return client.generate_text(prompt)
+
+        try:
+            logger.info(f"Trying Gemini with key #{idx}")
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(_call_gemini_with_key)
+                response = future.result(timeout=_DEFAULT_TIMEOUT)
+
+            if response and str(response).strip():
+                if idx > 1:
+                    logger.warning(f"Gemini succeeded with backup key #{idx - 1}")
+                return str(response).strip()
+
+            logger.warning(f"Gemini key #{idx} returned empty response")
+
+        except FutureTimeoutError:
+            logger.error(f"Gemini key #{idx} timed out")
+        except Exception as exc:
+            logger.error(f"Gemini key #{idx} failed: {exc}")
+
+    logger.error("All Gemini API keys failed")
+    return ""
 
 
 def ask_ollama(prompt: str, concise: bool = False) -> str:
