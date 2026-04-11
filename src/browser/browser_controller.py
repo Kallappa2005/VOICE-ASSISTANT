@@ -25,9 +25,12 @@ class BrowserController:
         self._is_open = False
         logger.info("Browser Controller initialized")
     
-    def open_chrome(self):
+    def open_chrome(self, startup_url="https://www.google.com"):
         """
         Open Chrome browser
+
+        Args:
+            startup_url: Initial URL to open after launching Chrome
         
         Returns:
             bool: Success status
@@ -94,6 +97,12 @@ class BrowserController:
             
             # Set page load timeout
             self.driver.set_page_load_timeout(30)
+
+            # Selenium starts on a blank data:, page by default.
+            # Navigate immediately to a useful default home page.
+            if startup_url:
+                self.driver.get(startup_url)
+                logger.info(f"Opened startup URL: {startup_url}")
             
             self._is_open = True
             logger.info("✅ Chrome browser opened successfully")
