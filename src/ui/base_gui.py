@@ -10,7 +10,7 @@ from pathlib import Path
 import time
 
 from src.core.logger import setup_logger
-from .styles import COLORS, FONTS, UI_CONFIG, ICONS, get_color, get_font, get_icon
+from .styles import COLORS, FONTS, UI_CONFIG, ICONS, get_color, get_font, get_icon, apply_ttk_theme
 
 logger = setup_logger(__name__)
 
@@ -40,10 +40,14 @@ class BaseAssistantGUI:
         # Configure window
         self.root.title(UI_CONFIG["window_title"])
         self.root.geometry(f"{UI_CONFIG['window_width']}x{UI_CONFIG['window_height']}")
+        self.root.minsize(UI_CONFIG["min_width"], UI_CONFIG["min_height"])
         self.root.configure(bg=get_color("bg_primary"))
+        self.root.option_add("*Font", get_font("normal"))
         
         if UI_CONFIG["always_on_top"]:
             self.root.attributes("-topmost", True)
+
+        apply_ttk_theme(self.root)
         
         logger.info(f"BaseAssistantGUI initialized (mode={mode})")
         
@@ -61,55 +65,93 @@ class BaseAssistantGUI:
         header = tk.Frame(
             self.root,
             bg=get_color("header_bg"),
-            height=80
+            height=96,
+            highlightthickness=1,
+            highlightbackground=get_color("panel_border"),
         )
         header.pack(fill=tk.X, pady=0)
 
+        accent_bar = tk.Frame(header, bg=get_color("accent_blue"), height=3)
+        accent_bar.pack(fill=tk.X, side=tk.TOP)
+
+        title_wrap = tk.Frame(header, bg=get_color("header_bg"))
+        title_wrap.pack(side=tk.LEFT, padx=UI_CONFIG["padding_lg"], pady=UI_CONFIG["padding_md"])
+
         # Title
         title = tk.Label(
-            header,
+            title_wrap,
             text=f"{get_icon('awake')} Voice Assistant",
             font=get_font("title"),
             fg=get_color("fg_primary"),
             bg=get_color("header_bg"),
         )
-        title.pack(side=tk.LEFT, padx=UI_CONFIG["padding_lg"], pady=UI_CONFIG["padding_md"])
+        title.pack(anchor="w")
+
+        subtitle = tk.Label(
+            title_wrap,
+            text="Control center for browser automation, voice commands, and AI analysis",
+            font=get_font("subtitle"),
+            fg=get_color("fg_muted"),
+            bg=get_color("header_bg"),
+        )
+        subtitle.pack(anchor="w", pady=(2, 0))
+
+        status_card = tk.Frame(
+            header,
+            bg=get_color("bg_quaternary"),
+            highlightthickness=1,
+            highlightbackground=get_color("panel_border"),
+        )
+        status_card.pack(side=tk.RIGHT, padx=UI_CONFIG["padding_lg"], pady=UI_CONFIG["padding_md"])
 
         # Status indicator
         self.status_indicator = tk.Label(
-            header,
+            status_card,
             text=get_icon("sleep"),
             font=("Arial", 16),
             fg=get_color("warning"),
-            bg=get_color("header_bg"),
+            bg=get_color("bg_quaternary"),
         )
-        self.status_indicator.pack(side=tk.RIGHT, padx=UI_CONFIG["padding_md"], pady=UI_CONFIG["padding_md"])
+        self.status_indicator.pack(side=tk.LEFT, padx=(12, 8), pady=10)
 
         # Status text
         self.status_text = tk.Label(
-            header,
+            status_card,
             text="Sleeping",
             font=get_font("normal"),
             fg=get_color("fg_secondary"),
-            bg=get_color("header_bg"),
+            bg=get_color("bg_quaternary"),
         )
-        self.status_text.pack(side=tk.RIGHT, padx=(0, 10), pady=UI_CONFIG["padding_md"])
+        self.status_text.pack(side=tk.LEFT, padx=(0, 12), pady=10)
 
     def _build_main_content(self):
         """Build main content area (left and right panels)"""
         main_frame = tk.Frame(self.root, bg=get_color("bg_primary"))
         main_frame.pack(fill=tk.BOTH, expand=True, padx=UI_CONFIG["padding_md"], pady=UI_CONFIG["padding_md"])
+        main_frame.columnconfigure(0, weight=40)
+        main_frame.columnconfigure(1, weight=60)
+        main_frame.rowconfigure(0, weight=1)
 
         # Left panel: Control & Commands
-        left_panel = tk.Frame(main_frame, bg=get_color("bg_primary"))
-        left_panel.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, UI_CONFIG["padding_sm"]))
+        left_panel = tk.Frame(
+            main_frame,
+            bg=get_color("bg_secondary"),
+            highlightthickness=1,
+            highlightbackground=get_color("panel_border"),
+        )
+        left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, UI_CONFIG["padding_sm"]))
 
         self._build_control_panel(left_panel)  # Implemented by subclasses
         self._build_command_section(left_panel)
 
         # Right panel: Output
-        right_panel = tk.Frame(main_frame, bg=get_color("bg_primary"))
-        right_panel.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(UI_CONFIG["padding_sm"], 0))
+        right_panel = tk.Frame(
+            main_frame,
+            bg=get_color("bg_secondary"),
+            highlightthickness=1,
+            highlightbackground=get_color("panel_border"),
+        )
+        right_panel.grid(row=0, column=1, sticky="nsew", padx=(UI_CONFIG["padding_sm"], 0))
 
         self._build_output_section(right_panel)
 
@@ -130,77 +172,92 @@ class BaseAssistantGUI:
             text="💬 Send Command",
             font=get_font("heading"),
             fg=get_color("accent"),
-            bg=get_color("bg_primary"),
+            bg=get_color("bg_secondary"),
         )
         section_header.pack(anchor="w", pady=(UI_CONFIG["padding_md"], UI_CONFIG["padding_sm"]))
 
         # Command frame
         cmd_frame = tk.Frame(
             parent,
-            bg=get_color("bg_secondary"),
-            relief=tk.SUNKEN,
-            bd=1
+            bg=get_color("bg_tertiary"),
+            highlightthickness=1,
+            highlightbackground=get_color("panel_border"),
         )
         cmd_frame.pack(fill=tk.BOTH, expand=True, pady=(0, UI_CONFIG["padding_md"]))
 
+        inner = tk.Frame(cmd_frame, bg=get_color("bg_tertiary"))
+        inner.pack(fill=tk.BOTH, expand=True, padx=UI_CONFIG["padding_md"], pady=UI_CONFIG["padding_md"])
+
         # Input label
         tk.Label(
-            cmd_frame,
-            text="Enter command:",
+            inner,
+            text="Type a command or use the quick actions below",
             font=get_font("small"),
-            fg=get_color("fg_primary"),
-            bg=get_color("bg_secondary"),
-        ).pack(anchor="w", padx=UI_CONFIG["padding_md"], pady=(UI_CONFIG["padding_md"], UI_CONFIG["padding_sm"]))
+            fg=get_color("fg_secondary"),
+            bg=get_color("bg_tertiary"),
+        ).pack(anchor="w", pady=(0, UI_CONFIG["padding_sm"]))
 
         # Input field
         self.command_input = tk.Entry(
-            cmd_frame,
+            inner,
             font=get_font("normal"),
-            bg=get_color("bg_tertiary"),
+            bg=get_color("input_bg"),
             fg=get_color("fg_primary"),
             insertbackground=get_color("fg_primary"),
+            relief=tk.FLAT,
+            highlightthickness=1,
+            highlightbackground=get_color("input_border"),
+            highlightcolor=get_color("accent_blue"),
         )
-        self.command_input.pack(fill=tk.X, padx=UI_CONFIG["padding_md"], pady=(0, UI_CONFIG["padding_sm"]))
+        self.command_input.pack(fill=tk.X, pady=(0, UI_CONFIG["padding_sm"]))
         self.command_input.bind("<Return>", lambda e: self._on_send_command())
 
         # Send button
         btn_send = tk.Button(
-            cmd_frame,
+            inner,
             text=f"{get_icon('send')} Send Command",
             command=self._on_send_command,
             bg=get_color("accent"),
-            fg="#000000",
+            activebackground=get_color("accent_light"),
+            fg="#08111f",
             font=get_font("normal"),
             padx=UI_CONFIG["padding_md"],
             pady=UI_CONFIG["padding_sm"],
+            relief=tk.FLAT,
+            bd=0,
+            cursor="hand2",
         )
-        btn_send.pack(fill=tk.X, padx=UI_CONFIG["padding_md"], pady=(0, UI_CONFIG["padding_md"]))
+        btn_send.pack(fill=tk.X, pady=(0, UI_CONFIG["padding_md"]))
 
         # Quick commands header
         tk.Label(
-            cmd_frame,
-            text="Quick Commands:",
+            inner,
+            text="Quick Commands",
             font=get_font("subheading"),
             fg=get_color("accent"),
-            bg=get_color("bg_secondary"),
-        ).pack(anchor="w", padx=UI_CONFIG["padding_md"], pady=(UI_CONFIG["padding_md"], UI_CONFIG["padding_sm"]))
+            bg=get_color("bg_tertiary"),
+        ).pack(anchor="w", pady=(0, UI_CONFIG["padding_sm"]))
 
         # Quick command buttons
-        quick_frame = tk.Frame(cmd_frame, bg=get_color("bg_secondary"))
-        quick_frame.pack(fill=tk.X, padx=UI_CONFIG["padding_md"], pady=(0, UI_CONFIG["padding_md"]))
+        quick_frame = tk.Frame(inner, bg=get_color("bg_tertiary"))
+        quick_frame.pack(fill=tk.X, pady=(0, UI_CONFIG["padding_sm"]))
 
         for label, command in self._get_quick_commands():
             btn = tk.Button(
                 quick_frame,
                 text=label,
                 command=lambda cmd=command: self._send_command_direct(cmd),
-                bg=get_color("bg_tertiary"),
+                bg=get_color("bg_quaternary"),
+                activebackground=get_color("accent_dark"),
                 fg=get_color("fg_primary"),
                 font=get_font("small"),
                 padx=UI_CONFIG["padding_sm"],
                 pady=UI_CONFIG["padding_xs"],
+                relief=tk.FLAT,
+                bd=0,
+                cursor="hand2",
             )
-            btn.pack(side=tk.LEFT, padx=UI_CONFIG["padding_xs"], pady=UI_CONFIG["padding_xs"])
+            btn.pack(side=tk.LEFT, padx=(0, UI_CONFIG["padding_xs"]), pady=UI_CONFIG["padding_xs"])
 
     def _build_output_section(self, parent):
         """Build output console section"""
@@ -209,17 +266,31 @@ class BaseAssistantGUI:
             text=f"{get_icon('console')} Output & Results",
             font=get_font("heading"),
             fg=get_color("accent"),
-            bg=get_color("bg_primary"),
+            bg=get_color("bg_secondary"),
         )
         section_header.pack(anchor="w", pady=(0, UI_CONFIG["padding_md"]))
 
+        shell = tk.Frame(
+            parent,
+            bg=get_color("bg_tertiary"),
+            highlightthickness=1,
+            highlightbackground=get_color("panel_border"),
+        )
+        shell.pack(fill=tk.BOTH, expand=True)
+
+        shell_inner = tk.Frame(shell, bg=get_color("bg_tertiary"))
+        shell_inner.pack(fill=tk.BOTH, expand=True, padx=UI_CONFIG["padding_md"], pady=UI_CONFIG["padding_md"])
+
         # Console
         self.console = scrolledtext.ScrolledText(
-            parent,
+            shell_inner,
             bg=get_color("console_bg"),
             fg=get_color("console_fg"),
             font=get_font("console"),
             wrap=tk.WORD,
+            relief=tk.FLAT,
+            bd=0,
+            insertbackground=get_color("fg_primary"),
         )
         self.console.pack(fill=tk.BOTH, expand=True)
 
@@ -233,18 +304,20 @@ class BaseAssistantGUI:
         """Build bottom footer"""
         footer = tk.Frame(
             self.root,
-            bg=get_color("bg_secondary"),
-            height=50
+            bg=get_color("header_bg"),
+            height=54,
+            highlightthickness=1,
+            highlightbackground=get_color("panel_border"),
         )
         footer.pack(fill=tk.X, pady=0)
 
         # Status text
         tk.Label(
             footer,
-            text="Voice Assistant Ready",
+            text="Voice Assistant Ready | Local + Container Friendly",
             font=get_font("small"),
             fg=get_color("fg_secondary"),
-            bg=get_color("bg_secondary"),
+            bg=get_color("header_bg"),
         ).pack(side=tk.LEFT, padx=UI_CONFIG["padding_lg"], pady=UI_CONFIG["padding_sm"])
 
         # Exit button
@@ -253,10 +326,14 @@ class BaseAssistantGUI:
             text=f"{get_icon('exit')} Exit",
             command=self._on_exit,
             bg=get_color("error"),
+            activebackground="#fb7185",
             fg=get_color("fg_primary"),
             font=get_font("normal"),
             padx=UI_CONFIG["padding_md"],
             pady=UI_CONFIG["padding_xs"],
+            relief=tk.FLAT,
+            bd=0,
+            cursor="hand2",
         )
         exit_btn.pack(side=tk.RIGHT, padx=UI_CONFIG["padding_lg"], pady=UI_CONFIG["padding_sm"])
 

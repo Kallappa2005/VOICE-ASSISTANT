@@ -132,17 +132,8 @@ class AIVoiceAssistant:
             self.tts.speak("Hello! I am your AI voice assistant.")
             time.sleep(0.5)
             
-            # Open browser
-            print("\n📋 Opening Chrome browser...")
-            self.tts.speak("Opening Chrome browser, please wait.")
-            
-            if not self.browser.open_chrome():
-                print("❌ Failed to open browser")
-                self.tts.speak("Failed to open browser. Please check your Chrome installation.")
-                return False
-            
-            print("✅ Browser opened successfully")
-            time.sleep(1)
+            # Note: Browser will open on first browser-related command.
+            # Do not open it automatically on startup.
             
             # Initialize browser-dependent handlers
             print("\n🔧 Initializing AI features...")
@@ -208,6 +199,62 @@ class AIVoiceAssistant:
                 print(f"  {cmd}")
         
         print("\n" + "=" * 80)
+    
+    def _handle_help(self):
+        """Handle help command - show available commands in console and GUI"""
+        self.speaker.speak("Here are the available commands")
+        
+        if self.gui:
+            self.gui.log_console("\n" + "=" * 80, "info")
+            self.gui.log_console("📋 AVAILABLE COMMANDS:", "info")
+            self.gui.log_console("=" * 80, "info")
+        
+        commands = {
+            "🎤 Wake/Sleep": [
+                "'hey assistant' / 'wake up' - Wake assistant",
+                "'sleep' - Put assistant to sleep",
+                "'exit' / 'goodbye' - Quit assistant",
+            ],
+            "🌐 Navigation": [
+                "'open wikipedia artificial intelligence' - Open website",
+                "'search for [query]' - Search on Google",
+            ],
+            "🤖 AI Webpage Analysis": [
+                "'analyze this page' - Full page analysis",
+                "'summarize this page' - Quick summary",
+                "'give me key points' - Extract key points",
+            ],
+            "💻 AI Code Analysis": [
+                "'analyze code from file' - Analyze test_code.py (SQL, XSS, complexity)",
+                "'check code clipboard' - Analyze code from clipboard",
+            ],
+            "⚙️ System": [
+                "'help' - Show this menu",
+            ]
+        }
+        
+        for category, cmd_list in commands.items():
+            category_msg = f"\n{category}"
+            separator = "  " + "─" * 70
+            
+            if self.gui:
+                self.gui.log_console(category_msg, "success")
+                self.gui.log_console(separator, "info")
+            
+            print(category_msg)
+            print(separator)
+            
+            for cmd in cmd_list:
+                cmd_msg = f"  {cmd}"
+                if self.gui:
+                    self.gui.log_console(cmd_msg, "info")
+                print(cmd_msg)
+        
+        if self.gui:
+            self.gui.log_console("\n" + "=" * 80, "info")
+        
+        print("\n" + "=" * 80)
+        self.speaker.speak("What would you like me to do?")
     
     def run_command_loop(self):
         """Main command processing loop"""
@@ -329,18 +376,24 @@ class AIVoiceAssistant:
             # ==================== AI WEBPAGE ANALYSIS ====================
             
             if intent == 'analyze_current_page':
+                if not self._ensure_browser_open():
+                    return True
                 if self.gui:
                     self.gui.log_message("🔍 Analyzing page...", level="info")
                 self.ai_handler.analyze_current_page()
                 return True
             
             if intent == 'summarize_page':
+                if not self._ensure_browser_open():
+                    return True
                 if self.gui:
                     self.gui.log_message("📝 Summarizing page...", level="info")
                 self.ai_handler.summarize_page()
                 return True
             
             if intent == 'get_key_points':
+                if not self._ensure_browser_open():
+                    return True
                 if self.gui:
                     self.gui.log_message("✨ Extracting key points...", level="info")
                 self.ai_handler.get_key_points()
@@ -365,6 +418,8 @@ class AIVoiceAssistant:
             # ==================== NAVIGATION ====================
             
             if intent == 'navigate':
+                if not self._ensure_browser_open():
+                    return True
                 site = params.get('site', 'google') if params else 'google'
                 print(f"\n🌐 Opening {site}...")
                 self.speaker.speak(f"Opening {site}")
@@ -398,6 +453,9 @@ class AIVoiceAssistant:
                         self.gui.log_message("🔍 What would you like to search for?", level="info")
                     
                     return True
+
+                if not self._ensure_browser_open():
+                    return True
                 
                 print(f"\n🔍 Searching for: {query}")
                 self.speaker.speak(f"Searching for {query}")
@@ -423,14 +481,8 @@ class AIVoiceAssistant:
             
             # ==================== HELP ====================
             
-            if 'help' in intent or intent == 'unknown':
-                self.speaker.speak("Here are the available commands")
-                self._show_command_menu()
-                self.speaker.speak("What would you like me to do?")
-                
-                if self.gui:
-                    self.gui.log_message("📋 Available commands displayed. What would you like me to do?", level="info")
-                
+            if intent == 'help':
+                self._handle_help()
                 return True
             
             # Unknown command
@@ -451,6 +503,25 @@ class AIVoiceAssistant:
                 self.gui.log_message(f"❌ Error: {e}", level="error")
             
             return True
+
+    def _ensure_browser_open(self):
+        """Ensure browser is open before browser-dependent commands."""
+        if self.browser.is_open():
+            return True
+
+        print("\n📋 Opening Chrome browser...")
+        self.speaker.speak("Opening Chrome browser, please wait.")
+
+        if not self.browser.open_chrome():
+            print("❌ Failed to open browser")
+            self.speaker.speak("Failed to open browser. Please check your Chrome installation.")
+            if self.gui:
+                self.gui.log_message("❌ Failed to open browser", level="error")
+            return False
+
+        print("✅ Browser opened successfully")
+        time.sleep(1)
+        return True
     
     def cleanup(self):
         """Cleanup resources"""

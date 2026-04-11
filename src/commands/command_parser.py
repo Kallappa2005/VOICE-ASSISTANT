@@ -117,6 +117,12 @@ class CommandParser:
             'exit', 'quit', 'goodbye', 'bye', 'close assistant'
         ]
         
+        # Help keywords
+        self.help_keywords = [
+            'help', 'show commands', 'what can you do', 'available commands',
+            'menu', 'command menu', 'help menu'
+        ]
+        
         # Webpage analysis keywords (BOTH AMERICAN & BRITISH SPELLING)
         self.analyze_page_keywords = [
             # American spelling
@@ -625,6 +631,14 @@ class CommandParser:
                     'intent': 'scroll_up',
                     'params': {'amount': amount}
                 }
+        
+        # ==================== HELP COMMAND ====================
+        
+        # Check for help command (BEFORE NAVIGATION so "help" doesn't map to help.com)
+        for keyword in self.help_keywords:
+            if keyword in command:
+                logger.info("Help intent detected")
+                return {'intent': 'help', 'params': None}
         
         # ==================== NAVIGATION & SEARCH (LOWEST PRIORITY) ====================
         

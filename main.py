@@ -153,17 +153,8 @@ class VoiceAssistant:
             self.tts.speak("Hello! I am your voice assistant.")
             time.sleep(0.5)
             
-            # Open browser
-            print("\n📋 Opening Chrome browser...")
-            self.tts.speak("Opening Chrome browser, please wait.")
-            
-            if not self.browser.open_chrome():
-                print("❌ Failed to open browser")
-                self.tts.speak("Failed to open browser. Please check your Chrome installation.")
-                return False
-            
-            print("✅ Browser opened successfully")
-            time.sleep(1)
+            # Note: Browser will open on first user command (navigate, search, youtube)
+            # Don't open it automatically to allow users to just listen/speak
             
             # Initialize browser-dependent handlers
             print("\n🔧 Initializing browser features...")
@@ -272,6 +263,100 @@ class VoiceAssistant:
                 print(f"  {cmd}")
         
         print("\n" + "=" * 80)
+    
+    def _handle_help(self):
+        """Handle help command - show available commands in console and GUI"""
+        self.tts.speak("Here are the available commands")
+        
+        if self.gui:
+            self.gui.log_console("\n" + "=" * 80, "info")
+            self.gui.log_console("📋 AVAILABLE COMMANDS:", "info")
+            self.gui.log_console("=" * 80, "info")
+        
+        commands = {
+            "🌐 Navigation": [
+                "'open youtube' - Open YouTube",
+                "'open google' / 'open wikipedia' - Open websites",
+                "'search for [query]' - Search on Google",
+            ],
+            "📹 YouTube": [
+                "'search youtube for [query]' - Search videos",
+                "'play video 1' / 'play first video' - Play specific video",
+                "'pause video' - Pause current video",
+                "'play video' / 'resume video' - Resume playback",
+                "'stop video' - Stop and reset video",
+                "'skip ad' - Skip the current YouTube ad (once skip button appears)",
+            ],
+            "📜 Scrolling": [
+                "'scroll down' / 'scroll up' - Scroll page",
+                "'scroll to top' / 'scroll to bottom' - Jump to top/bottom",
+            ],
+            "📸 Screenshots": [
+                "'take screenshot' - Capture current view",
+                "'full page screenshot' - Capture entire page",
+                "'list screenshots' - Count screenshots",
+                "'delete screenshot' - Delete last screenshot",
+            ],
+            "🗂️ Tab Management": [
+                "'switch tab' / 'next tab' - Switch to next tab",
+                "'previous tab' - Switch to previous tab",
+                "'new tab' - Open new tab",
+                "'close tab' - Close current tab",
+            ],
+            "⚙️ System": [
+                "'help' - Show this menu",
+                "'exit' / 'goodbye' - Quit assistant",
+            ],
+            "💻 Coding Mode": [
+                "'start coding'  - Launch full dev environment from config.json",
+                "'coding mode'   - Same as above",
+                "'begin coding'  - Same as above",
+                "'launch project'- Open project in VS Code + terminal + browser",
+                "  (edit config.json in project root to change settings)",
+            ],
+            "🛠️ Project Setup": [
+                "'set up react project'  - Create React + Express starter project",
+                "'set up flask project'  - Create React + Flask starter project",
+                "  Voice assistant will ask for the main folder name first",
+                "  Base Desktop folder is read from config.json",
+            ],
+            "📚 Study Mode": [
+                "'study mode' [topic]        - Launch study environment",
+                "'start studying' [topic]    - Same as above",
+                "'focus mode' [topic]        - Same as above",
+                "'study session' [topic]     - Same as above",
+                "  Example: 'study mode React hooks', 'start studying Python'",
+                "  (edit config.json to customize YouTube, docs, and note app)",
+            ],
+            "🔊 Noisy Room Tips": [
+                "Speak clearly and slightly louder than normal",
+                "Assistant retries 3× if it mishears — wait for the retry prompt",
+                "Move closer to the microphone if possible",
+            ]
+        }
+        
+        for category, cmd_list in commands.items():
+            category_msg = f"\n{category}"
+            separator = "  " + "─" * 70
+            
+            if self.gui:
+                self.gui.log_console(category_msg, "success")
+                self.gui.log_console(separator, "info")
+            
+            print(category_msg)
+            print(separator)
+            
+            for cmd in cmd_list:
+                cmd_msg = f"  {cmd}"
+                if self.gui:
+                    self.gui.log_console(cmd_msg, "info")
+                print(cmd_msg)
+        
+        if self.gui:
+            self.gui.log_console("\n" + "=" * 80, "info")
+        
+        print("\n" + "=" * 80)
+        self.tts.speak("What would you like me to do?")
     
     def run_command_loop(self):
         """Main command processing loop"""
@@ -432,107 +517,185 @@ class VoiceAssistant:
             print(f"🔍 Detected intent: {intent}")
             logger.info(f"Intent: {intent}, Params: {params}")
             
-            # Route to appropriate handler
-            if intent == 'navigate':
-                self._handle_navigate(params)
-            
-            elif intent == 'search':
-                self._handle_search(params)
-            
-            elif intent == 'open_youtube':
-                self._handle_open_youtube()
-            
-            elif intent == 'youtube_search':
-                self._handle_youtube_search(params)
-            
-            elif intent == 'play_video':
-                self._handle_play_video(params)
-            
-            elif intent == 'pause_video':
-                self._handle_pause_video()
-            
-            elif intent == 'resume_video':
-                self._handle_resume_video()
-            
-            elif intent == 'stop_video':
-                self._handle_stop_video()
-            
-            elif intent == 'skip_ad':
-                self._handle_skip_ad()
-            
-            elif intent == 'scroll_down':
-                self._handle_scroll_down(params)
-            
-            elif intent == 'scroll_up':
-                self._handle_scroll_up(params)
-            
-            elif intent == 'scroll_top':
-                self._handle_scroll_top()
-            
-            elif intent == 'scroll_bottom':
-                self._handle_scroll_bottom()
-            
-            elif intent == 'screenshot':
-                self._handle_screenshot()
-            
-            elif intent == 'fullpage_screenshot':
-                self._handle_fullpage_screenshot()
-            
-            elif intent == 'list_screenshots':
-                self._handle_list_screenshots()
-            
-            elif intent == 'delete_screenshot':
-                self._handle_delete_screenshot()
-            
-            elif intent == 'delete_all_screenshots':
-                self._handle_delete_all_screenshots()
-            
-            elif intent == 'switch_tab':
-                self._handle_switch_tab()
-            
-            elif intent == 'previous_tab':
-                self._handle_previous_tab()
-            
-            elif intent == 'close_tab':
-                self._handle_close_tab()
-            
-            elif intent == 'new_tab':
-                self._handle_new_tab()
-            
-            elif intent == 'close_browser':
-                self._handle_close_browser()
-            
-            elif intent == 'start_coding':
-                self._handle_start_coding()
-
-            elif intent == 'setup_project':
-                self._handle_setup_project(params)
-            
-            elif intent == 'start_study':
-                params = parsed.get('params', {})
-                self._handle_start_study(params)
-            
-            elif intent == 'unknown':
-                print("❌ Command not recognized")
-                self.tts.speak("I'm not sure what you mean. Say help to see available commands.")
-            
-            else:
-                print(f"⚠️ Intent '{intent}' not implemented yet")
-                self.tts.speak(f"I understand {intent}, but this feature is not ready yet.")
+            return self.handle_command(intent, params, context=context)
         
         except Exception as e:
             print(f"❌ Error executing command: {e}")
             logger.error(f"Command execution error: {e}", exc_info=True)
             self.tts.speak("Sorry, I encountered an error while executing that command.")
+            return False
+    
+    def handle_command(self, intent, params, context=None):
+        """Handle an already-parsed intent from voice input or GUI buttons."""
+        try:
+            params = params or {}
+
+            if intent == 'navigate':
+                self._handle_navigate(params)
+                return True
+            
+            if intent == 'search':
+                self._handle_search(params)
+                return True
+            
+            if intent == 'open_youtube':
+                self._handle_open_youtube()
+                return True
+            
+            if intent == 'youtube_search':
+                self._handle_youtube_search(params)
+                return True
+            
+            if intent == 'play_video':
+                self._handle_play_video(params)
+                return True
+            
+            if intent == 'pause_video':
+                self._handle_pause_video()
+                return True
+            
+            if intent == 'resume_video':
+                self._handle_resume_video()
+                return True
+            
+            if intent == 'stop_video':
+                self._handle_stop_video()
+                return True
+            
+            if intent == 'skip_ad':
+                self._handle_skip_ad()
+                return True
+            
+            if intent == 'scroll_down':
+                self._handle_scroll_down(params)
+                return True
+            
+            if intent == 'scroll_up':
+                self._handle_scroll_up(params)
+                return True
+            
+            if intent == 'scroll_top':
+                self._handle_scroll_top()
+                return True
+            
+            if intent == 'scroll_bottom':
+                self._handle_scroll_bottom()
+                return True
+            
+            if intent == 'screenshot':
+                self._handle_screenshot()
+                return True
+            
+            if intent == 'fullpage_screenshot':
+                self._handle_fullpage_screenshot()
+                return True
+            
+            if intent == 'list_screenshots':
+                self._handle_list_screenshots()
+                return True
+            
+            if intent == 'delete_screenshot':
+                self._handle_delete_screenshot()
+                return True
+            
+            if intent == 'delete_all_screenshots':
+                self._handle_delete_all_screenshots()
+                return True
+            
+            if intent == 'switch_tab':
+                self._handle_switch_tab()
+                return True
+            
+            if intent == 'previous_tab':
+                self._handle_previous_tab()
+                return True
+            
+            if intent == 'close_tab':
+                self._handle_close_tab()
+                return True
+            
+            if intent == 'new_tab':
+                self._handle_new_tab()
+                return True
+            
+            if intent == 'close_browser':
+                self._handle_close_browser()
+                return True
+            
+            if intent == 'start_coding':
+                self._handle_start_coding()
+                return True
+
+            if intent == 'setup_project':
+                self._handle_setup_project(params)
+                return True
+            
+            if intent == 'start_study':
+                self._handle_start_study(params)
+                return True
+            
+            if intent == 'help':
+                self._handle_help()
+                return True
+            
+            if intent == 'wake':
+                self.tts.speak("Hello! I'm ready. How can I help you?")
+                return True
+
+            if intent == 'sleep':
+                self.tts.speak("Going to sleep. Say wake up to wake me.")
+                return True
+
+            if intent == 'exit':
+                self.tts.speak_goodbye()
+                return False
+            
+            if intent == 'unknown':
+                print("❌ Command not recognized")
+                self.tts.speak("I'm not sure what you mean. Say help to see available commands.")
+                return True
+            
+            print(f"⚠️ Intent '{intent}' not implemented yet")
+            self.tts.speak(f"I understand {intent}, but this feature is not ready yet.")
+            return True
+        
+        except Exception as e:
+            print(f"❌ Error handling command: {e}")
+            logger.error(f"Command handling error: {e}", exc_info=True)
+            self.tts.speak("Sorry, I encountered an error while executing that command.")
+            return True
+    
+    # ==================== BROWSER INITIALIZATION ====================
+    
+    def _ensure_browser_open(self):
+        """Ensure browser is open before browser-dependent commands"""
+        if not self.browser.is_open():
+            print("\n📋 Opening Chrome browser...")
+            self.tts.speak("Opening Chrome browser, please wait.")
+            
+            if not self.browser.open_chrome():
+                print("❌ Failed to open browser")
+                self.tts.speak("Failed to open browser. Please check your Chrome installation.")
+                return False
+            
+            print("✅ Browser opened successfully")
+            time.sleep(1)
+            return True
+        
+        return True
     
     # ==================== COMMAND HANDLERS ====================
     
     def _handle_navigate(self, params):
         """Handle website navigation"""
         site = params.get('site', 'google')
+
+        if not self._ensure_browser_open():
+            return
+
         print(f"\n🌐 Opening {site}...")
         self.tts.speak(f"Opening {site}")
-        
+
         success, url = self.nav.open_website(site)
         if success:
             time.sleep(2)
@@ -541,17 +704,20 @@ class VoiceAssistant:
         else:
             print(f"❌ Failed to open {site}")
             self.tts.speak(f"Could not open {site}")
-    
+
     def _handle_search(self, params):
         """Handle Google search"""
         query = params.get('query', '')
         if not query:
             self.tts.speak("What would you like to search for?")
             return
-        
+
+        if not self._ensure_browser_open():
+            return
+
         print(f"\n🔍 Searching for: {query}")
         self.tts.speak(f"Searching for {query}")
-        
+
         if self.nav.search_google(query):
             time.sleep(2)
             print("✅ Search completed")
@@ -559,12 +725,15 @@ class VoiceAssistant:
         else:
             print("❌ Search failed")
             self.tts.speak("Search failed")
-    
+
     def _handle_open_youtube(self):
         """Handle open YouTube"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n📺 Opening YouTube...")
         self.tts.speak("Opening YouTube")
-        
+
         if self.youtube.open_youtube():
             time.sleep(2)
             print("✅ YouTube opened")
@@ -572,17 +741,20 @@ class VoiceAssistant:
         else:
             print("❌ Failed to open YouTube")
             self.tts.speak("Failed to open YouTube")
-    
+
     def _handle_youtube_search(self, params):
         """Handle YouTube search"""
         query = params.get('query', '')
         if not query:
             self.tts.speak("What would you like to search on YouTube?")
             return
-        
+
+        if not self._ensure_browser_open():
+            return
+
         print(f"\n🔍 Searching YouTube: {query}")
         self.tts.speak(f"Searching YouTube for {query}")
-        
+
         if self.youtube.search_video(query):
             time.sleep(2)
             count = self.youtube.get_search_results_count()
@@ -591,24 +763,27 @@ class VoiceAssistant:
         else:
             print("❌ YouTube search failed")
             self.tts.speak("YouTube search failed")
-    
+
     def _handle_play_video(self, params):
         """Handle play video by number"""
         video_num = params.get('video_number', 1)
         index = video_num - 1
-        
+
+        if not self._ensure_browser_open():
+            return
+
         print(f"\n▶️ Playing video {video_num}...")
-        
+
         # Get video title
         title = self.youtube.get_video_title_by_index(index)
         if not title:
             print(f"❌ Video {video_num} not found")
             self.tts.speak(f"Video {video_num} not found")
             return
-        
+
         print(f"   Title: {title[:60]}...")
         self.tts.speak(f"Playing video {video_num}")
-        
+
         if self.youtube.play_video_by_index(index):
             time.sleep(3)
             print("✅ Video started")
@@ -616,17 +791,20 @@ class VoiceAssistant:
         else:
             print("❌ Failed to play video")
             self.tts.speak("Failed to play video")
-    
+
     def _handle_pause_video(self):
         """Handle pause video"""
+        if not self._ensure_browser_open():
+            return
+
         if not self.youtube.is_on_video_page():
             print("❌ No video is playing")
             self.tts.speak("No video is currently playing")
             return
-        
+
         print("\n⏸️ Pausing video...")
         self.tts.speak("Pausing video")
-        
+
         if self.youtube.pause_video():
             time.sleep(1)
             print("✅ Video paused")
@@ -634,17 +812,20 @@ class VoiceAssistant:
         else:
             print("❌ Failed to pause")
             self.tts.speak("Failed to pause video")
-    
+
     def _handle_resume_video(self):
         """Handle resume video"""
+        if not self._ensure_browser_open():
+            return
+
         if not self.youtube.is_on_video_page():
             print("❌ No video loaded")
             self.tts.speak("No video is loaded")
             return
-        
+
         print("\n▶️ Resuming video...")
         self.tts.speak("Resuming video")
-        
+
         if self.youtube.play_video():
             time.sleep(1)
             print("✅ Video resumed")
@@ -652,17 +833,20 @@ class VoiceAssistant:
         else:
             print("❌ Failed to resume")
             self.tts.speak("Failed to resume video")
-    
+
     def _handle_stop_video(self):
         """Handle stop video"""
+        if not self._ensure_browser_open():
+            return
+
         if not self.youtube.is_on_video_page():
             print("❌ No video is playing")
             self.tts.speak("No video is playing")
             return
-        
+
         print("\n⏹️ Stopping video...")
         self.tts.speak("Stopping video")
-        
+
         if self.youtube.stop_video():
             time.sleep(1)
             print("✅ Video stopped and reset")
@@ -670,43 +854,43 @@ class VoiceAssistant:
         else:
             print("❌ Failed to stop")
             self.tts.speak("Failed to stop video")
-    
+
     def _handle_skip_ad(self):
         """Handle skip YouTube ad"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n⏭️ Checking for ads...")
-        
+
         # First, make sure we are on a video page at all
         if not self.youtube.is_on_video_page():
             print("❌ Not on a YouTube video page")
             self.tts.speak("You are not on a YouTube video page")
             return
-        
+
         # Check if an ad is actually showing
         if not self.youtube.is_ad_playing():
             print("ℹ️ No ad is currently playing")
             self.tts.speak("No ad is currently playing")
             return
-        
+
         print("📢 Ad detected! Waiting for skip button (up to 30 seconds)...")
         self.tts.speak("Ad detected. Waiting for the skip button.")
-        
+
         result = self.youtube.skip_ad(wait_seconds=30)
-        
+
         if result == 'skipped':
             print("✅ Ad skipped!")
             self.tts.speak("Ad skipped. Enjoy your video!")
-        
         elif result == 'no_ad':
             print("ℹ️ Ad ended on its own before skip button appeared")
             self.tts.speak("Looks like the ad already finished")
-        
         elif result == 'not_yet':
             print("⚠️ Ad is playing but skip button did not appear")
             self.tts.speak(
                 "This ad cannot be skipped. It will end automatically, "
                 "please wait a moment."
             )
-        
         else:  # 'error'
             print("❌ Error while trying to skip ad")
             self.tts.speak("Sorry, something went wrong while trying to skip the ad.")
@@ -853,8 +1037,11 @@ class VoiceAssistant:
     def _handle_scroll_down(self, params):
         """Handle scroll down"""
         amount = params.get('amount', 'medium') if params else 'medium'
+
+        if not self._ensure_browser_open():
+            return
+
         print(f"\n📜 Scrolling down ({amount})...")
-        
         if self.scroll.scroll_down(amount):
             print("✅ Scrolled down")
             self.tts.speak("Scrolled down")
@@ -865,8 +1052,11 @@ class VoiceAssistant:
     def _handle_scroll_up(self, params):
         """Handle scroll up"""
         amount = params.get('amount', 'medium') if params else 'medium'
+
+        if not self._ensure_browser_open():
+            return
+
         print(f"\n📜 Scrolling up ({amount})...")
-        
         if self.scroll.scroll_up(amount):
             print("✅ Scrolled up")
             self.tts.speak("Scrolled up")
@@ -876,8 +1066,10 @@ class VoiceAssistant:
     
     def _handle_scroll_top(self):
         """Handle scroll to top"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n📜 Scrolling to top...")
-        
         if self.scroll.scroll_to_top():
             print("✅ At top of page")
             self.tts.speak("At top of page")
@@ -887,8 +1079,10 @@ class VoiceAssistant:
     
     def _handle_scroll_bottom(self):
         """Handle scroll to bottom"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n📜 Scrolling to bottom...")
-        
         if self.scroll.scroll_to_bottom():
             print("✅ At bottom of page")
             self.tts.speak("At bottom of page")
@@ -898,9 +1092,12 @@ class VoiceAssistant:
     
     def _handle_screenshot(self):
         """Handle take screenshot"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n📸 Taking screenshot...")
         self.tts.speak("Taking screenshot")
-        
+
         success, filepath = self.screenshot.take_screenshot()
         if success:
             print(f"✅ Screenshot saved: {filepath}")
@@ -911,9 +1108,12 @@ class VoiceAssistant:
     
     def _handle_fullpage_screenshot(self):
         """Handle full page screenshot"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n📸 Taking full page screenshot...")
         self.tts.speak("Taking full page screenshot. This may take a moment.")
-        
+
         success, filepath = self.screenshot.take_full_page_screenshot()
         if success:
             print(f"✅ Full page screenshot saved: {filepath}")
@@ -924,6 +1124,9 @@ class VoiceAssistant:
     
     def _handle_list_screenshots(self):
         """Handle list screenshots"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n📸 Counting screenshots...")
         count = self.screenshot.get_screenshot_count()
         print(f"✅ You have {count} screenshot(s)")
@@ -931,8 +1134,11 @@ class VoiceAssistant:
     
     def _handle_delete_screenshot(self):
         """Handle delete last screenshot"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n🗑️ Deleting last screenshot...")
-        
+
         screenshots = self.screenshot.list_screenshots()
         if not screenshots:
             print("❌ No screenshots found")
@@ -949,6 +1155,9 @@ class VoiceAssistant:
     
     def _handle_delete_all_screenshots(self):
         """Handle delete all screenshots"""
+        if not self._ensure_browser_open():
+            return
+
         count = self.screenshot.get_screenshot_count()
         
         if count == 0:
@@ -972,8 +1181,10 @@ class VoiceAssistant:
     
     def _handle_switch_tab(self):
         """Handle switch to next tab"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n🗂️ Switching to next tab...")
-        
         if self.tabs.switch_to_next_tab():
             time.sleep(1)
             title = self.browser.get_page_title()
@@ -985,8 +1196,10 @@ class VoiceAssistant:
     
     def _handle_previous_tab(self):
         """Handle switch to previous tab"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n🗂️ Switching to previous tab...")
-        
         if self.tabs.switch_to_previous_tab():
             time.sleep(1)
             title = self.browser.get_page_title()
@@ -998,8 +1211,10 @@ class VoiceAssistant:
     
     def _handle_close_tab(self):
         """Handle close current tab"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n🗂️ Closing current tab...")
-        
         if self.tabs.close_current_tab():
             remaining = self.tabs.get_tab_count()
             if remaining > 0:
@@ -1015,8 +1230,10 @@ class VoiceAssistant:
     
     def _handle_new_tab(self):
         """Handle open new tab"""
+        if not self._ensure_browser_open():
+            return
+
         print("\n🗂️ Opening new tab...")
-        
         if self.tabs.open_new_tab("https://www.google.com"):
             count = self.tabs.get_tab_count()
             print(f"✅ New tab opened. Total: {count} tab(s)")
@@ -1027,9 +1244,12 @@ class VoiceAssistant:
     
     def _handle_close_browser(self):
         """Handle close browser"""
-        print("\n🌐 Closing browser...")
-        self.tts.speak("Closing browser. Goodbye!")
-        self.running = False
+        if self.browser and self.browser.is_open():
+            print("\n🌐 Closing browser...")
+            self.browser.close_browser()
+            self.tts.speak("Browser closed")
+        else:
+            self.tts.speak("Browser is already closed")
     
     def cleanup(self):
         """Cleanup resources"""
