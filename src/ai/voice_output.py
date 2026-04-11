@@ -11,7 +11,7 @@ logger = setup_logger(__name__)
 class VoiceOutput:
     """Text-to-speech output for AI assistant"""
     
-    def __init__(self):
+    def __init__(self, rate=210):
         """Initialize text-to-speech engine"""
         try:
             self.engine = pyttsx3.init()
@@ -22,13 +22,13 @@ class VoiceOutput:
             if len(voices) > 1:
                 self.engine.setProperty('voice', voices[1].id)
             
-            # Set speech rate (default is 200)
-            self.engine.setProperty('rate', 170)  # Slightly slower for clarity
+            # Set speech rate (default is usually around 200)
+            self.engine.setProperty('rate', rate)
             
             # Set volume (0.0 to 1.0)
             self.engine.setProperty('volume', 0.9)
             
-            logger.info("Voice output initialized")
+            logger.info(f"Voice output initialized (rate={rate})")
             
         except Exception as e:
             logger.error(f"Error initializing voice output: {e}")

@@ -9,6 +9,8 @@ Run: python main.py
 import sys
 import os
 import time
+import webbrowser
+from threading import Thread
 
 # Add src to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -23,25 +25,40 @@ from src.automation.screenshot_handler import ScreenshotHandler
 from src.automation.youtube_controller import YouTubeController
 from src.automation.coding_mode import CodingMode
 from src.automation.study_mode import StudyMode
+from src.automation.project_setup import ProjectSetup
 from src.commands.command_parser import CommandParser
 from src.core.logger import setup_logger
 
+# GUI imports (optional)
+try:
+    import tkinter as tk
+    GUI_AVAILABLE = True
+except ImportError:
+    GUI_AVAILABLE = False
 
 logger = setup_logger(__name__)
 
 class VoiceAssistant:
     """Main Voice Assistant Application"""
     
-    def __init__(self):
-        """Initialize all components"""
+    def __init__(self, gui=None):
+        """
+        Initialize all components
+        
+        Args:
+            gui: Optional BasicAssistantGUI instance (passed from launcher)
+        """
         print("\n" + "=" * 80)
         print(" " * 25 + "🎤 VOICE ASSISTANT")
         print("=" * 80)
         print("\n🔧 Initializing components...")
         
+        # GUI (optional)
+        self.gui = gui
+        
         # Initialize speech handlers
         print("   ├── Speech Recognition...")
-        self.tts = TextToSpeechHandler(rate=160)
+        self.tts = TextToSpeechHandler(rate=210)
         self.stt = SpeechRecognitionHandler()
         print("   ✅ Speech module ready")
         
@@ -69,6 +86,11 @@ class VoiceAssistant:
         print("   ├── Study Mode...")
         self.study_mode = StudyMode()
         print("   ✅ Study Mode ready")
+
+        # Initialize Project Setup (browser-independent — uses config.json)
+        print("   ├── Project Setup...")
+        self.project_setup = ProjectSetup()
+        print("   ✅ Project Setup ready")
         
         # Browser-dependent handlers (initialized after browser opens)
         self.nav = None
@@ -79,6 +101,17 @@ class VoiceAssistant:
         
         self.running = False
         
+        # GUI availability
+        if self.gui is None and GUI_AVAILABLE:
+            try:
+                from src.ui.basic_gui import BasicAssistantGUI
+                self.gui = BasicAssistantGUI(assistant=self)
+                print("   ├── GUI Interface...")
+                print("   ✅ GUI ready")
+            except Exception as e:
+                print(f"   ⚠️ GUI not available: {e}")
+                self.gui = None
+        
         print("\n✅ Voice Assistant initialized successfully!")
         logger.info("Voice Assistant initialized")
     
@@ -88,48 +121,81 @@ class VoiceAssistant:
         print("🚀 STARTING VOICE ASSISTANT")
         print("=" * 80)
         
-        # Greet user
-        self.tts.speak("Hello! I am your voice assistant.")
-        time.sleep(0.5)
+        # If GUI is available, start it in the main thread
+        # This blocks until the GUI window closes
+        if self.gui:
+            print("\n📱 Starting GUI interface...")
+            
+            # Start assistant in daemon thread
+            assistant_thread = Thread(target=self._run_assistant, daemon=True)
+            assistant_thread.start()
+            
+            # Show GUI (blocks main thread)
+            self.gui.show()
+            self.gui.run()
+            
+            # GUI closed, stop assistant
+            self.running = False
+            print("\n👋 GUI closed, shutting down...")
+            time.sleep(0.5)
+            self.cleanup()
+            
+            return True
         
-        # Open browser
-        print("\n📋 Opening Chrome browser...")
-        self.tts.speak("Opening Chrome browser, please wait.")
-        
-        if not self.browser.open_chrome():
-            print("❌ Failed to open browser")
-            self.tts.speak("Failed to open browser. Please check your Chrome installation.")
+        # Otherwise run headless (traditional mode)
+        print("\n🎧 Running in headless mode (no GUI)")
+        return self._run_assistant()
+    
+    def _run_assistant(self):
+        """Run the assistant loop (can run in separate thread)"""
+        try:
+            # Greet user
+            self.tts.speak("Hello! I am your voice assistant.")
+            time.sleep(0.5)
+            
+            # Open browser
+            print("\n📋 Opening Chrome browser...")
+            self.tts.speak("Opening Chrome browser, please wait.")
+            
+            if not self.browser.open_chrome():
+                print("❌ Failed to open browser")
+                self.tts.speak("Failed to open browser. Please check your Chrome installation.")
+                return False
+            
+            print("✅ Browser opened successfully")
+            time.sleep(1)
+            
+            # Initialize browser-dependent handlers
+            print("\n🔧 Initializing browser features...")
+            self.nav = Navigation(self.browser)
+            self.tabs = TabManager(self.browser)
+            self.scroll = ScrollHandler(self.browser)
+            self.screenshot = ScreenshotHandler(self.browser)
+            self.youtube = YouTubeController(self.browser)
+            print("✅ All features initialized")
+            
+            # Ready message
+            print("\n" + "=" * 80)
+            print("✅ VOICE ASSISTANT IS READY!")
+            print("=" * 80)
+            
+            self.tts.speak("I am ready! You can now give me commands.")
+            time.sleep(0.5)
+            self.tts.speak("Say help to hear available commands, or say exit to quit.")
+            
+            # Show command menu
+            self._show_command_menu()
+            
+            # Start command loop
+            self.running = True
+            self.run_command_loop()
+            
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error in assistant: {e}")
+            logger.error(f"Assistant error: {e}", exc_info=True)
             return False
-        
-        print("✅ Browser opened successfully")
-        time.sleep(1)
-        
-        # Initialize browser-dependent handlers
-        print("\n🔧 Initializing browser features...")
-        self.nav = Navigation(self.browser)
-        self.tabs = TabManager(self.browser)
-        self.scroll = ScrollHandler(self.browser)
-        self.screenshot = ScreenshotHandler(self.browser)
-        self.youtube = YouTubeController(self.browser)
-        print("✅ All features initialized")
-        
-        # Ready message
-        print("\n" + "=" * 80)
-        print("✅ VOICE ASSISTANT IS READY!")
-        print("=" * 80)
-        
-        self.tts.speak("I am ready! You can now give me commands.")
-        time.sleep(0.5)
-        self.tts.speak("Say help to hear available commands, or say exit to quit.")
-        
-        # Show command menu
-        self._show_command_menu()
-        
-        # Start command loop
-        self.running = True
-        self.run_command_loop()
-        
-        return True
     
     def _show_command_menu(self):
         """Display available commands"""
@@ -178,7 +244,13 @@ class VoiceAssistant:
                 "'launch project'- Open project in VS Code + terminal + browser",
                 "  (edit config.json in project root to change settings)",
             ],
-            "� Study Mode": [
+            "🛠️ Project Setup": [
+                "'set up react project'  - Create React + Express starter project",
+                "'set up flask project'  - Create React + Flask starter project",
+                "  Voice assistant will ask for the main folder name first",
+                "  Base Desktop folder is read from config.json",
+            ],
+            "📚 Study Mode": [
                 "'study mode' [topic]        - Launch study environment",
                 "'start studying' [topic]    - Same as above",
                 "'focus mode' [topic]        - Same as above",
@@ -186,7 +258,7 @@ class VoiceAssistant:
                 "  Example: 'study mode React hooks', 'start studying Python'",
                 "  (edit config.json to customize YouTube, docs, and note app)",
             ],
-            "�🔊 Noisy Room Tips": [
+            "🔊 Noisy Room Tips": [
                 "Speak clearly and slightly louder than normal",
                 "Assistant retries 3× if it mishears — wait for the retry prompt",
                 "Move closer to the microphone if possible",
@@ -205,6 +277,9 @@ class VoiceAssistant:
         """Main command processing loop"""
         command_count = 0
         
+        if self.gui:
+            self.gui.log_message("🎤 Listening... Say commands or 'help' for menu", level="info")
+        
         while self.running:
             try:
                 print("\n" + "━" * 80)
@@ -217,12 +292,21 @@ class VoiceAssistant:
                     if context.get('on_video_page'):
                         status = "▶️ Playing" if context.get('video_playing') else "⏸️ Paused"
                         print(f"📍 Context: On YouTube video page ({status})")
+                        
+                        if self.gui:
+                            self.gui.log_message(f"📍 On YouTube ({status})", level="info")
                     elif context.get('on_youtube'):
                         print(f"📍 Context: On YouTube")
+                        
+                        if self.gui:
+                            self.gui.log_message("📍 On YouTube", level="info")
                     else:
                         current_url = self.browser.get_current_url()
                         if current_url:
                             print(f"📍 Current page: {current_url[:60]}...")
+                            
+                            if self.gui:
+                                self.gui.log_message(f"📍 {current_url[:50]}...", level="info")
                 
                 # Listen for command
                 print("\n🎤 Speak now...")
@@ -231,15 +315,26 @@ class VoiceAssistant:
                 if not command:
                     print("❓ No audio detected")
                     self.tts.speak("I didn't hear anything. Please try again.")
+                    
+                    if self.gui:
+                        self.gui.log_message("❓ No audio detected", level="warning")
+                    
                     continue
                 
                 print(f"\n📝 You said: '{command}'")
                 logger.info(f"User command: {command}")
                 
+                if self.gui:
+                    self.gui.log_message(f"👤 You: {command}", level="info")
+                
                 # Check for exit command
                 if self._is_exit_command(command):
                     print("\n👋 Exiting...")
                     self.tts.speak("Goodbye! Thank you for using voice assistant.")
+                    
+                    if self.gui:
+                        self.gui.log_message("👋 Goodbye!", level="success")
+                    
                     break
                 
                 # Check for help command
@@ -247,6 +342,10 @@ class VoiceAssistant:
                     self.tts.speak("Here are the available commands")
                     self._show_command_menu()
                     self.tts.speak("What would you like me to do?")
+                    
+                    if self.gui:
+                        self.gui.log_message("📋 Showing available commands", level="info")
+                    
                     continue
                 
                 # Execute command
@@ -255,16 +354,29 @@ class VoiceAssistant:
                 
             except KeyboardInterrupt:
                 print("\n\n⚠️ Interrupted by user (Ctrl+C)")
+                logger.warning("Interrupted by user")
                 self.tts.speak("Interrupted")
+                
+                if self.gui:
+                    self.gui.log_message("⚠️ Interrupted by user", level="warning")
+                
                 break
                 
             except Exception as e:
                 print(f"\n❌ Error in command loop: {e}")
                 logger.error(f"Command loop error: {e}")
                 self.tts.speak("Sorry, I encountered an error. Please try again.")
+                
+                if self.gui:
+                    self.gui.log_message(f"❌ Error: {e}", level="error")
         
         # Cleanup
         print(f"\n📊 Total commands executed: {command_count}")
+        logger.info(f"Total commands: {command_count}")
+        
+        if self.gui:
+            self.gui.log_message(f"📊 Session ended. Commands: {command_count}", level="success")
+        
         self.cleanup()
     
     def _get_context(self):
@@ -392,6 +504,9 @@ class VoiceAssistant:
             
             elif intent == 'start_coding':
                 self._handle_start_coding()
+
+            elif intent == 'setup_project':
+                self._handle_setup_project(params)
             
             elif intent == 'start_study':
                 params = parsed.get('params', {})
@@ -595,6 +710,62 @@ class VoiceAssistant:
         else:  # 'error'
             print("❌ Error while trying to skip ad")
             self.tts.speak("Sorry, something went wrong while trying to skip the ad.")
+
+    def _handle_setup_project(self, params):
+        """Handle project setup commands for React and Flask starter projects."""
+        params = params or {}
+        project_type = params.get('project_type', 'react').strip().lower()
+
+        print(f"\n🛠️ Starting {project_type.title()} project setup...")
+        self.tts.speak(
+            f"Starting {project_type} project setup. What folder name should I use for the main project folder?"
+        )
+
+        folder_name = self.stt.listen()
+        if not folder_name:
+            fallback_name = params.get('project_name')
+            if fallback_name:
+                folder_name = fallback_name
+
+        if not folder_name:
+            print("❌ No folder name provided")
+            self.tts.speak("I could not hear the folder name. Please try again.")
+            return
+
+        folder_name = folder_name.strip()
+        print(f"📁 Folder name: {folder_name}")
+        self.tts.speak(f"Setting up the project inside the folder named {folder_name}. Please wait.")
+
+        result = self.project_setup.setup_project(project_type, folder_name)
+
+        if result['success']:
+            ok = sum(1 for s in result['steps'] if s.startswith('✅'))
+            total = len(result['steps'])
+            urls = result.get('urls', {})
+
+            print(f"\n✅ {project_type.title()} project launched ({ok}/{total} steps succeeded)")
+            print(f"📂 Project path: {result.get('project_path')}")
+
+            if urls.get('backend'):
+                if self.nav:
+                    self.nav.goto_url(urls['backend'], new_tab=True)
+                else:
+                    webbrowser.open(urls['backend'], new=2)
+
+            if urls.get('frontend'):
+                time.sleep(1)
+                if self.nav:
+                    self.nav.goto_url(urls['frontend'], new_tab=True)
+                else:
+                    webbrowser.open(urls['frontend'], new=2)
+
+            self.tts.speak(
+                f"{project_type.title()} project setup is complete. I opened the frontend and backend in the browser."
+            )
+        else:
+            err = result.get('error', 'Unknown error')
+            print(f"\n❌ Project setup failed: {err}")
+            self.tts.speak(f"Project setup failed. {err}")
     
     def _handle_start_study(self, params):
         """Handle 'study mode' voice command — launches focused study environment."""

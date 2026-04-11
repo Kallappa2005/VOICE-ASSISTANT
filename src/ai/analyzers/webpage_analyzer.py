@@ -5,6 +5,7 @@ Analyzes webpage content using AI
 
 from bs4 import BeautifulSoup
 import re
+from src.ai.utils.ai_router import ask_ai
 from src.core.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -190,8 +191,9 @@ Please provide:
 
 Format your response clearly with headings."""
             
-            # Get AI response
-            response = self.gemini.generate_text(prompt)
+            # Route through AI router (Gemini primary, Ollama fallback)
+            # Use concise=True to get faster Ollama responses (2-3 lines max)
+            response = ask_ai(prompt, task_type='analysis', concise=True)
             
             if response:
                 logger.info("Page analysis completed")
@@ -233,8 +235,9 @@ Format your response clearly with headings."""
 **Instructions:**
 Provide a concise, clear summary focusing on the main topic and key points. Keep it brief and informative."""
             
-            # Get AI response
-            response = self.gemini.generate_text(prompt)
+            # Route through AI router (Gemini primary, Ollama fallback)
+            # Use concise=True to get faster Ollama responses (2-3 lines max)
+            response = ask_ai(prompt, task_type='summary', concise=True)
             
             if response:
                 logger.info("Page summary completed")
@@ -283,12 +286,9 @@ Identify and list 5-10 key points from this content. Each point should be:
 Format: Return ONLY a numbered list (1., 2., 3., etc.) with each key point on a new line.
 Do NOT include any introductory text or explanations, just the numbered list."""
             
-            # Get AI response
-            response = self.gemini.generate_text(prompt)
-            
-            if not response:
-                logger.error("No response from Gemini")
-                return ["Error: Could not generate key points."]
+            # Route through AI router (Gemini primary, Ollama fallback)
+            # Use concise=True to get faster Ollama responses (2-3 lines max)
+            response = ask_ai(prompt, task_type='summary', concise=True)
             
             # Parse response into list
             key_points = []

@@ -13,13 +13,22 @@ logger = setup_logger(__name__)
 class GeminiClient:
     """Wrapper for Google Gemini API with error handling"""
     
-    def __init__(self):
-        """Initialize Gemini client"""
-        if not config.is_configured():
+    def __init__(self, api_key=None):
+        """
+        Initialize Gemini client.
+
+        Args:
+            api_key: Optional API key override (used by router failover)
+        """
+        if not config.is_configured() and not api_key:
             raise ValueError("Gemini API key not configured")
-        
+
+        selected_key = (api_key or config.GEMINI_API_KEY or "").strip()
+        if not selected_key:
+            raise ValueError("Gemini API key not configured")
+
         # Configure API
-        genai.configure(api_key=config.GEMINI_API_KEY)
+        genai.configure(api_key=selected_key)
         
         # Initialize model
         self.model_name = config.GEMINI_MODEL

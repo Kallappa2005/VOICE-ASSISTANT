@@ -5,6 +5,7 @@ Handles AI-powered features (webpage analysis, code analysis)
 
 from src.core.logger import setup_logger
 from src.ai.utils.gemini_client import GeminiClient
+from src.ai.utils.ai_router import get_last_ai_provider
 from src.ai.analyzers.webpage_analyzer import WebpageAnalyzer
 from src.ai.analyzers.code_analyzer import CodeAnalyzer
 from src.ai.voice_output import VoiceOutput
@@ -23,8 +24,12 @@ class AICommandHandler:
         """
         self.browser = browser_controller
         
-        # Initialize Gemini client
-        gemini_client = GeminiClient()
+        # Initialize Gemini client (best effort; router can still fallback to Ollama)
+        gemini_client = None
+        try:
+            gemini_client = GeminiClient()
+        except Exception as e:
+            logger.warning(f"Gemini client init failed; fallback-only mode active: {e}")
         
         # Initialize analyzers
         self.webpage_analyzer = WebpageAnalyzer(gemini_client)
@@ -67,6 +72,9 @@ class AICommandHandler:
             # Analyze with AI
             logger.info("Sending to AI for analysis...")
             analysis = self.webpage_analyzer.analyze_page(content_data)
+
+            if get_last_ai_provider() == 'ollama':
+                self.voice_output.speak("Gemini API failed. Using local Ollama backup.")
             
             # Display results
             print("\n" + "="*70)
@@ -121,6 +129,9 @@ class AICommandHandler:
             # Summarize with AI
             logger.info("Sending to AI for summarization...")
             summary = self.webpage_analyzer.summarize_page(content_data)
+
+            if get_last_ai_provider() == 'ollama':
+                self.voice_output.speak("Gemini API failed. Using local Ollama backup.")
             
             # Display results
             print("\n" + "="*70)
@@ -174,6 +185,9 @@ class AICommandHandler:
             # Extract key points with AI
             logger.info("Sending to AI for key points extraction...")
             key_points = self.webpage_analyzer.extract_key_points(content_data)
+
+            if get_last_ai_provider() == 'ollama':
+                self.voice_output.speak("Gemini API failed. Using local Ollama backup.")
             
             # Display results
             print("\n" + "="*70)
