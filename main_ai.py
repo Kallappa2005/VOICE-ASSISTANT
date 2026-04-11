@@ -29,7 +29,7 @@ from src.ai.ai_commands import AICommandHandler
 from src.voice.voice import VoiceInput
 from src.assistant import Assistant
 from src.ui.simple_ui import UIHandler
-from src.ui.frontend_gui import FrontendGUI  # NEW: Visual Frontend
+from src.ui.production_gui import ProductionGUI  # NEW: Production-Grade Visual Frontend
 
 logger = setup_logger(__name__)
 
@@ -81,8 +81,8 @@ class AIVoiceAssistant:
 
         print("   ├── Frontend GUI (Visual)...")
         self.gui_root = tk.Tk()
-        self.frontend_gui = FrontendGUI(root=self.gui_root)
-        print("   ✅ Visual frontend ready")
+        self.frontend_gui = ProductionGUI(root=self.gui_root)
+        print("   ✅ Production GUI ready")
 
         # ── Agent system (developer automation) ───────────────────────────────
         print("   |-- Agent System...")
@@ -225,9 +225,19 @@ class AIVoiceAssistant:
                 print(f"\n[You said]: '{command}'")
                 logger.info(f"User command: {command}")
 
+                # ─── Add to chat display ──────────────────────────────────────
+                if self.frontend_gui:
+                    self.frontend_gui.add_chat_message(command, "user")
+
                 # ─── STEP 2: Check if developer task ──────────────────────────
                 if self.is_awake and self.assistant:
                     if self.assistant.is_developer_task(command):
+                        # ─── Switch to project mode ──────────────────────────────
+                        if self.frontend_gui:
+                            self.frontend_gui.add_chat_info("🚀 Developer task detected - switching to project setup...")
+                            self.frontend_gui.update_ui({"type": "mode_switch", "mode": "project"})
+                            self.gui_root.update()
+                        
                         # ─── STEP 3-7: Developer task flow (from assistant.py) ──
                         result = self.assistant.handle_developer_task(command)
                         command_count += 1
@@ -235,6 +245,11 @@ class AIVoiceAssistant:
                         # Sleep mode: wait before returning to listening
                         if result['success']:
                             time.sleep(8)
+                        else:
+                            # On error, go back to chat mode
+                            if self.frontend_gui:
+                                self.frontend_gui.update_ui({"type": "mode_switch", "mode": "chat"})
+                                self.gui_root.update()
                         
                         continue
 
@@ -456,11 +471,13 @@ class AIVoiceAssistant:
     # ─────────────────────────────────────────────────────────────────────────
 
     def _show_frontend_gui(self):
-        """Display frontend GUI (shows window, doesn't block)"""
+        """Display frontend GUI in chat mode (shows window, doesn't block)"""
         try:
             self.frontend_gui.show()
-            self.gui_root.update()  # Update GUI once
-            logger.info("Frontend GUI displayed")
+            self.frontend_gui.show_chat_mode()  # Ensure we show chat mode first
+            self.frontend_gui.add_chat_info("👋 Assistant is ready! Try commands like: 'build react project', 'search google python', etc.")
+            self.gui_root.update()
+            logger.info("Production GUI displayed in chat mode")
         except Exception as e:
             logger.error(f"GUI display error: {e}")
 
